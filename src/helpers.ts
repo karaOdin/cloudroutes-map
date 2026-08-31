@@ -23,6 +23,33 @@ export function capitalize(str: string) {
 }
 
 /**
+ * Darkens a hex colour toward black. Used to draw a casing under a coloured
+ * polyline so pale line colours (e.g. #FFFF00, which sits at 1.07:1 against a
+ * light basemap) still read against the map.
+ */
+export function darkenColor(color: string, amount: number = 0.3): string {
+  if (!color.startsWith("#")) return color;
+
+  const hex = color.slice(1);
+  const full =
+    hex.length === 3
+      ? hex
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : hex;
+  const num = parseInt(full, 16);
+
+  if (Number.isNaN(num)) return color;
+
+  const r = Math.max(0, ((num >> 16) & 0xff) * (1 - amount));
+  const g = Math.max(0, ((num >> 8) & 0xff) * (1 - amount));
+  const b = Math.max(0, (num & 0xff) * (1 - amount));
+
+  return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+}
+
+/**
  * TRRACAR API UTILITIES
  */
 

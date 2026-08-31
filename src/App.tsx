@@ -13,7 +13,7 @@ import {
 import { LineMarkers } from "./components/LineMarkers.tsx";
 import { createClientApi } from "@cloudroutes/query";
 import { Env } from "./config/env.ts";
-import { initTraccarClient } from "./helpers.ts";
+import { darkenColor, initTraccarClient } from "./helpers.ts";
 import { DevicePositionMarkers } from "./components/BusMarkers";
 import { BusStopsMarkers } from "./components/BusStopsMarkers.tsx";
 import Modal from "react-modal";
@@ -87,45 +87,47 @@ type RouteData = {
   };
 };
 
+/** Escapes text interpolated into marker HTML (stop names come from the API). */
+const escapeHtml = (value: string): string =>
+  value.replace(
+    /[&<>"']/g,
+    (char) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[char] as string
+  );
+
 // Custom marker icons for different stop types - Small dots like Google Maps
 const createStopIcon = (
   action: "board" | "arrive" | "transfer" | "travel" | "walk",
   stopName?: string,
   lineColor?: string
 ): L.DivIcon => {
+  const title = escapeHtml(stopName || "");
+
   // For regular/intermediate stops, use small dots like Google Maps
   if (action === "travel") {
-    const dotColor = lineColor || "#06b6d4";
     return L.divIcon({
       className: "custom-bus-stop-icon",
-      html: `
-        <div style="
-          width: 10px;
-          height: 10px;
-          background: ${dotColor};
-          border: 2px solid white;
-          border-radius: 50%;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-        " title="${stopName || ""}"></div>
-      `,
+      html: `<div class="route-stop-dot" style="--dot-color: ${escapeHtml(
+        lineColor || "#06b6d4"
+      )};" title="${title}"></div>`,
       iconSize: [10, 10],
       iconAnchor: [5, 5],
-      popupAnchor: [0, -5],
+      popupAnchor: [0, -8],
     });
   }
 
   // For special stops, use meaningful icons
-  let bgColor = "#06b6d4";
-  const borderColor = "white";
-  let size = 40;
-  let borderWidth = 4;
+  const size = action === "board" || action === "arrive" ? 40 : 36;
   let iconSvg = "";
 
   switch (action) {
     case "walk":
-      bgColor = "#6B7280"; // Gray for walk/current location
-      size = 36;
-      borderWidth = 3;
       iconSvg = `
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="12" cy="4" r="2" fill="white"/>
@@ -134,7 +136,6 @@ const createStopIcon = (
       `;
       break;
     case "board":
-      bgColor = "#10b981"; // Green for start
       iconSvg = `
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="12" cy="12" r="8" stroke="white" stroke-width="2.5" fill="none"/>
@@ -143,18 +144,14 @@ const createStopIcon = (
       `;
       break;
     case "arrive":
-      bgColor = "#ef4444"; // Red for end
       iconSvg = `
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="white"/>
-          <circle cx="12" cy="9" r="2.5" fill="${bgColor}"/>
+          <circle cx="12" cy="9" r="2.5" fill="#ef4444"/>
         </svg>
       `;
       break;
     case "transfer":
-      bgColor = "#f59e0b"; // Orange for transfer
-      size = 36;
-      borderWidth = 3;
       iconSvg = `
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M7 10l3-3m0 0L7 4m3 3H4" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -166,23 +163,7 @@ const createStopIcon = (
 
   return L.divIcon({
     className: "custom-stop-icon",
-    html: `
-      <div style="
-        width: ${size}px;
-        height: ${size}px;
-        background: ${bgColor};
-        border: ${borderWidth}px solid ${borderColor};
-        border-radius: 50%;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        position: relative;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      " title="${stopName || ""}">
-        ${iconSvg}
-      </div>
-    `,
+    html: `<div class="route-stop-pin" data-action="${action}" title="${title}">${iconSvg}</div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
     popupAnchor: [0, -size / 2 - 5],
@@ -191,28 +172,16 @@ const createStopIcon = (
 
 // Line label icon (like Google Maps "19F", "30D" badges)
 const createLineLabelIcon = (lineName: string, color: string): L.DivIcon => {
+  const lineColor = escapeHtml(color || "#06b6d4");
+
   return L.divIcon({
     className: "line-label-icon",
     html: `
-      <div style="
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: white;
-        color: ${color || "#06b6d4"};
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-weight: 600;
-        font-size: 11px;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-        white-space: nowrap;
-        border: 2px solid ${color || "#06b6d4"};
-        transform: translateX(-50%);
-      ">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="${color || "#06b6d4"}">
+      <div class="route-line-label" style="--line-color: ${lineColor};">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M12 2C8 2 4 2.5 4 6v9.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h2l2-2h4l2 2h2v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V6c0-3.5-4-4-8-4zM7.5 15c-.83 0-1.5-.67-1.5-1.5S6.67 12 7.5 12s1.5.67 1.5 1.5S8.33 15 7.5 15zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM18 10H6V6h12v4z"/>
         </svg>
-        ${lineName}
+        <span>${escapeHtml(lineName)}</span>
       </div>
     `,
     iconSize: [0, 0],
@@ -380,19 +349,21 @@ function ZoomControl() {
   return (
     <div className="zoom-controls">
       <button
+        type="button"
         className="zoom-button"
         onClick={() => map.zoomIn()}
         aria-label={t("controls.zoom_in")}
       >
-        +
+        <span aria-hidden="true">+</span>
       </button>
       <div className="zoom-divider" />
       <button
+        type="button"
         className="zoom-button"
         onClick={() => map.zoomOut()}
         aria-label={t("controls.zoom_out")}
       >
-        −
+        <span aria-hidden="true">−</span>
       </button>
     </div>
   );
@@ -483,55 +454,9 @@ function RouteVisualization({ routeData }: { routeData: RouteData }) {
     }
   };
 
-  // Get background color for popup badge
-  const getActionBgColor = (action: string) => {
-    switch (action) {
-      case "walk":
-        return "#f3f4f6";
-      case "board":
-        return "#d1fae5";
-      case "arrive":
-        return "#fee2e2";
-      case "transfer":
-        return "#fef3c7";
-      default:
-        return "#f0f9ff";
-    }
-  };
-
-  // Get text color for popup badge
-  const getActionTextColor = (action: string) => {
-    switch (action) {
-      case "walk":
-        return "#374151";
-      case "board":
-        return "#065f46";
-      case "arrive":
-        return "#991b1b";
-      case "transfer":
-        return "#92400e";
-      default:
-        return "#0c4a6e";
-    }
-  };
-
   // Check if step is a walk step
   const isWalkStep = (step: RouteStep) => {
     return step.action === "walk" || step.type === "walk";
-  };
-
-  // Helper to darken a color for the border
-  const darkenColor = (color: string, amount: number = 0.3): string => {
-    // Handle hex colors
-    if (color.startsWith("#")) {
-      const hex = color.slice(1);
-      const num = parseInt(hex, 16);
-      const r = Math.max(0, ((num >> 16) & 0xff) * (1 - amount));
-      const g = Math.max(0, ((num >> 8) & 0xff) * (1 - amount));
-      const b = Math.max(0, (num & 0xff) * (1 - amount));
-      return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
-    }
-    return color;
   };
 
   return (
@@ -596,139 +521,48 @@ function RouteVisualization({ routeData }: { routeData: RouteData }) {
           title={stop.name}
         >
           <Popup>
-            <div
-              style={{
-                padding: "0",
-                minWidth: "200px",
-                direction: isRTL ? "rtl" : "ltr",
-              }}
-            >
-              {/* Popup Header - styled like BusStopModal */}
-              <div
-                style={{
-                  background:
-                    "linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)",
-                  padding: "12px 14px",
-                  borderRadius: "0",
-                  marginBottom: "0",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "32px",
-                      height: "32px",
-                      background: "white",
-                      borderRadius: "8px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
+            <div className="map-popup" dir={isRTL ? "rtl" : "ltr"}>
+              <div className="map-popup__header">
+                <div className="map-popup__icon">
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 20 16"
+                    fill="currentColor"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true"
                   >
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 20 16"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M20 3V12C20 12.71 19.62 13.36 19 13.72V15.25C19 15.66 18.66 16 18.25 16H17.75C17.34 16 17 15.66 17 15.25V14H10V15.25C10 15.66 9.66 16 9.25 16H8.75C8.34 16 8 15.66 8 15.25V13.72C7.39 13.36 7 12.71 7 12V3C7 0 10 0 13.5 0C17 0 20 0 20 3Z"
-                        fill="#0c4a6e"
-                      />
-                    </svg>
-                  </div>
-                  <div
-                    style={{
-                      color: "white",
-                      fontWeight: "700",
-                      fontSize: "14px",
-                      lineHeight: "1.3",
-                      flex: 1,
-                    }}
-                  >
-                    {stop.name}
-                  </div>
+                    <path d="M20 3V12C20 12.71 19.62 13.36 19 13.72V15.25C19 15.66 18.66 16 18.25 16H17.75C17.34 16 17 15.66 17 15.25V14H10V15.25C10 15.66 9.66 16 9.25 16H8.75C8.34 16 8 15.66 8 15.25V13.72C7.39 13.36 7 12.71 7 12V3C7 0 10 0 13.5 0C17 0 20 0 20 3Z" />
+                  </svg>
                 </div>
+                <div className="map-popup__title">{stop.name}</div>
               </div>
 
-              {/* Popup Body */}
-              <div
-                style={{
-                  padding: "12px 14px",
-                  background: "white",
-                }}
-              >
-                {/* Line info if available */}
+              <div className="map-popup__body">
                 {stop.line && (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      marginBottom: "10px",
-                      padding: "8px 10px",
-                      background: "#f0f9ff",
-                      borderRadius: "8px",
-                      border: "1px solid #e0f2fe",
-                    }}
-                  >
+                  <div className="map-popup__row">
                     <svg
                       width="14"
                       height="14"
                       viewBox="0 0 24 24"
                       fill="none"
                       xmlns="http://www.w3.org/2000/svg"
+                      aria-hidden="true"
                     >
                       <path
                         d="M7 18V7.414a1 1 0 01.293-.707l2.414-2.414A1 1 0 0110.414 4H17a1 1 0 011 1v13M7 14h10"
-                        stroke="#0891b2"
                         strokeWidth="2"
                         strokeLinecap="round"
                       />
                     </svg>
-                    <span
-                      style={{
-                        fontSize: "12px",
-                        color: "#0891b2",
-                        fontWeight: "600",
-                      }}
-                    >
+                    <span>
                       {t("filters.lines")}: {stop.line}
                     </span>
                   </div>
                 )}
 
-                {/* Action type badge */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "8px 12px",
-                    backgroundColor: getActionBgColor(stop.action),
-                    borderRadius: "8px",
-                    border: `1px solid ${getActionBgColor(stop.action)}`,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: getActionTextColor(stop.action),
-                      textTransform: "uppercase",
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    {getActionLabel(stop.action)}
-                  </span>
+                <div className="map-popup__badge" data-action={stop.action}>
+                  {getActionLabel(stop.action)}
                 </div>
               </div>
             </div>
@@ -877,16 +711,20 @@ function App() {
         })}
       >
         <button
+          type="button"
           className="control-button"
           onClick={() => setIsFiltersOpen(true)}
           aria-label={t("controls.filters")}
+          aria-haspopup="dialog"
+          aria-expanded={isFiltersOpen}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 -960 960 960"
-            width="24px"
-            height="24px"
-            fill="#0c4a6e"
+            width="24"
+            height="24"
+            fill="currentColor"
+            aria-hidden="true"
           >
             <path d="M400-240v-80h160v80H400ZM240-440v-80h480v80H240ZM120-640v-80h720v80H120Z" />
           </svg>
@@ -894,9 +732,11 @@ function App() {
 
         {!!window.env && (
           <button
+            type="button"
             className={clsx("control-button", { active: displayLocation })}
             onClick={getLocation}
             aria-label={t("controls.my_location")}
+            aria-pressed={displayLocation}
           >
             <svg
               width="24"
@@ -904,16 +744,17 @@ function App() {
               viewBox="0 0 24 24"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
             >
               <circle
                 cx="12"
                 cy="12"
                 r="8"
-                stroke="#0c4a6e"
+                stroke="currentColor"
                 strokeWidth="2"
                 fill="none"
               />
-              <circle cx="12" cy="12" r="3" fill="#0c4a6e" />
+              <circle cx="12" cy="12" r="3" fill="currentColor" />
             </svg>
           </button>
         )}
@@ -929,6 +770,7 @@ function App() {
         className="ReactModal__Content"
         overlayClassName="ReactModal__Overlay"
         closeTimeoutMS={300}
+        contentLabel={t("filters.title")}
       >
         <Filters onApply={() => setIsFiltersOpen(false)} />
       </Modal>

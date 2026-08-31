@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useStops } from "@cloudroutes/query/lines";
 import { QUERY_KEYS } from "@cloudroutes/query";
-import { busStopIcon } from "../icons.ts";
+import { busStopIconFor } from "../icons.ts";
 import { Marker } from "react-leaflet";
 import { useFilterStore } from "../hooks/use-filter-store.ts";
 import { MapFilters } from "../types.ts";
@@ -63,7 +63,7 @@ export function BusStopsMarkers() {
         <Marker
           key={stop.id}
           position={stop.coordinate}
-          icon={busStopIcon}
+          icon={busStopIconFor(stop.lines.length)}
           title={stop.title}
           eventHandlers={{
             click: () => handleMarkerClick(stop),

@@ -1,10 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import Select, { SingleValue } from "react-select";
+import { createSelectStyles } from "../styles/select-theme.ts";
 import { useFilters } from "../hooks/use-filters.ts";
 import { useMapLinesOption } from "../hooks/use-map-lines-name.ts";
 import { useGlobalStore } from "../store";
 import { LEAFLET_PROVIDERS } from "../constants";
 import { useTranslation } from "react-i18next";
+
+type SelectOption = { label: string; value: string };
 
 type Props = {
   onApply?: VoidFunction;
@@ -16,10 +18,10 @@ export function Filters({ onApply }: Props) {
   const { selectedFilters, handleChange, handleApply } = useFilters();
   const lines = useMapLinesOption();
   const currentLeafletProvider = useGlobalStore(
-    (state) => state.leafletProvider
+    (state) => state.leafletProvider,
   );
   const setLeafletProvider = useGlobalStore(
-    (state) => state.setLeafletProvider
+    (state) => state.setLeafletProvider,
   );
 
   const applyFilters = () => {
@@ -27,63 +29,8 @@ export function Filters({ onApply }: Props) {
     handleApply();
   };
 
-  const customSelectStyles = {
-    control: (provided: any, state: any) => ({
-      ...provided,
-      borderRadius: "12px",
-      borderColor: state.isFocused ? "#0c4a6e" : "#e5e7eb",
-      borderWidth: "2px",
-      minHeight: "48px",
-      boxShadow: state.isFocused ? "0 0 0 3px rgba(67, 56, 202, 0.1)" : "none",
-      transition: "all 0.2s",
-      fontSize: "14px",
-      cursor: "pointer",
-      direction: isRTL ? "rtl" : "ltr",
-    }),
-    option: (provided: any, state: any) => ({
-      ...provided,
-      textAlign: isRTL ? "right" : "left",
-      direction: isRTL ? "rtl" : "ltr",
-      backgroundColor: state.isSelected
-        ? "#0c4a6e"
-        : state.isFocused
-          ? "#eef2ff"
-          : "white",
-      color: state.isSelected ? "white" : "#1f2937",
-      padding: "12px 14px",
-      cursor: "pointer",
-      fontWeight: state.isSelected ? "600" : "400",
-      fontSize: "14px",
-    }),
-    singleValue: (provided: any) => ({
-      ...provided,
-      textAlign: isRTL ? "right" : "left",
-      direction: isRTL ? "rtl" : "ltr",
-      color: "#1f2937",
-      fontWeight: "500",
-      fontSize: "14px",
-    }),
-    placeholder: (provided: any) => ({
-      ...provided,
-      textAlign: isRTL ? "right" : "left",
-      direction: isRTL ? "rtl" : "ltr",
-      color: "#9ca3af",
-      fontSize: "14px",
-    }),
-    menu: (provided: any) => ({
-      ...provided,
-      borderRadius: "12px",
-      overflow: "hidden",
-      boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.15)",
-      marginTop: "8px",
-      border: "2px solid #e5e7eb",
-    }),
-    menuList: (provided: any) => ({
-      ...provided,
-      padding: "6px",
-      maxHeight: "220px",
-    }),
-  };
+  const singleSelectStyles = createSelectStyles<SelectOption, false>(isRTL);
+  const multiSelectStyles = createSelectStyles<SelectOption, true>(isRTL);
 
   const stopFilters = [
     { value: "all", label: t("filters.all") },
@@ -100,7 +47,7 @@ export function Filters({ onApply }: Props) {
   return (
     <div className={isRTL ? "rtl" : ""}>
       {/* Modal Header */}
-      <div className="modal-header">
+      <header className="modal-header">
         <div className="modal-drag-handle"></div>
         <div className="modal-title-row">
           <div className="modal-icon">
@@ -116,6 +63,7 @@ export function Filters({ onApply }: Props) {
           </div>
           <h2 className="modal-title">{t("filters.title")}</h2>
           <button
+            type="button"
             className="modal-close-btn"
             onClick={onApply}
             aria-label={t("filters.close")}
@@ -136,7 +84,7 @@ export function Filters({ onApply }: Props) {
             </svg>
           </button>
         </div>
-      </div>
+      </header>
 
       {/* Modal Body */}
       <div className="modal-body">
@@ -175,7 +123,7 @@ export function Filters({ onApply }: Props) {
             value={selectedFilters.line}
             onChange={(value) => handleChange("line", value)}
             isSearchable={false}
-            styles={customSelectStyles}
+            styles={multiSelectStyles}
           />
         </div>
 
@@ -210,7 +158,7 @@ export function Filters({ onApply }: Props) {
               handleChange("stop", value)
             }
             isSearchable={false}
-            styles={customSelectStyles}
+            styles={singleSelectStyles}
           />
         </div>
 
@@ -242,57 +190,84 @@ export function Filters({ onApply }: Props) {
               handleChange("bus", value)
             }
             isSearchable={false}
-            styles={customSelectStyles}
+            styles={singleSelectStyles}
           />
         </div>
 
-        {/* Map Layer Filter */}
-        <div className="form-group">
-          <div className="form-label">
-            <div
-              className="label-icon"
-              style={{
-                background: "linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)",
-              }}
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="white"
-              >
-                <path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z" />
-              </svg>
-            </div>
+        {/* Map Layer Filter — a basemap choice matters to whoever is building
+            or debugging the map, not to a rider looking for their bus, so it
+            sits collapsed under the filters that do. */}
+        <details className="advanced-group">
+          <summary className="advanced-summary">
             <span>{t("filters.map_layer")}</span>
+            <svg
+              className="advanced-chevron"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path
+                d="M6 9l6 6 6-6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </summary>
+
+          <div className="form-group advanced-body">
+            <div className="form-label">
+              <div
+                className="label-icon"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)",
+                }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="white"
+                >
+                  <path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z" />
+                </svg>
+              </div>
+              <span>{t("filters.map_layer")}</span>
+            </div>
+            <Select
+              options={LEAFLET_PROVIDERS.map((provider) => ({
+                label: provider.name,
+                value: provider.id.toString(),
+              }))}
+              value={{
+                label: currentLeafletProvider.name,
+                value: currentLeafletProvider.id.toString(),
+              }}
+              onChange={(
+                value: SingleValue<{ label: string; value: string }>,
+              ) => {
+                const provider = LEAFLET_PROVIDERS.find(
+                  (provider) => provider.id === Number(value?.value),
+                );
+                if (provider) {
+                  setLeafletProvider(provider);
+                }
+              }}
+              isSearchable={false}
+              styles={singleSelectStyles}
+            />
           </div>
-          <Select
-            options={LEAFLET_PROVIDERS.map((provider) => ({
-              label: provider.name,
-              value: provider.id.toString(),
-            }))}
-            value={{
-              label: currentLeafletProvider.name,
-              value: currentLeafletProvider.id.toString(),
-            }}
-            onChange={(
-              value: SingleValue<{ label: string; value: string }>
-            ) => {
-              const provider = LEAFLET_PROVIDERS.find(
-                (provider) => provider.id === Number(value?.value)
-              );
-              if (provider) {
-                setLeafletProvider(provider);
-              }
-            }}
-            isSearchable={false}
-            styles={customSelectStyles}
-          />
-        </div>
+        </details>
 
         {/* Apply Button */}
         <button
+          type="button"
           className="primary-button"
           onClick={applyFilters}
           style={{ width: "100%" }}

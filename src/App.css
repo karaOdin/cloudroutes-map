@@ -1,45 +1,25 @@
 /* ============================================
    CSS VARIABLES
    ============================================ */
-:root {
-  --primary-blue: #06b6d4
-  --dark-blue: #0a3a5c;
-  --medium-blue: #0c4a6e;
-  --light-blue: #164e63;
-  --white: #ffffff;
-  --gray-50: #f9fafb;
-  --gray-100: #f3f4f6;
-  --gray-200: #e5e7eb;
-  --gray-300: #d1d5db;
-  --gray-400: #9ca3af;
-  --gray-500: #6b7280;
-  --gray-600: #4b5563;
-  --gray-700: #374151;
-  --gray-800: #1f2937;
-  --gray-900: #111827;
-  --green: #10b981;
-  --red: #ef4444;
-  --yellow: #eab308;
-  --orange: #f59e0b;
-}
+/* Design tokens now live in src/index.css, which is imported first in
+   main.tsx. The legacy names used throughout this file (--primary-blue,
+   --gray-*, --green, --red, …) are still defined there as aliases. */
 
 /* ============================================
    REACT MODAL BASE STYLES
    ============================================ */
 .ReactModal__Overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  z-index: 10000;
+  inset: 0;
+  background-color: rgba(8, 47, 73, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: var(--z-sheet);
   display: flex;
   align-items: flex-end;
   justify-content: center;
   opacity: 0;
-  transition: opacity 300ms ease-in-out;
+  transition: opacity var(--dur-slow) var(--ease);
 }
 
 .ReactModal__Overlay--after-open {
@@ -52,18 +32,20 @@
 
 .ReactModal__Content {
   position: relative;
-  background: white;
-  border-radius: 24px 24px 0 0;
+  background: var(--surface);
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
   outline: none;
   padding: 0;
+  padding-bottom: var(--safe-bottom);
   max-width: 600px;
   width: 100%;
-  max-height: 85vh;
+  max-height: min(85dvh, 780px);
   overflow-y: auto;
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-sheet);
   transform: translateY(100%);
-  transition: transform 300ms ease-out;
+  transition: transform var(--dur-slow) var(--ease-out);
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .ReactModal__Content--after-open {
@@ -83,8 +65,8 @@
 }
 
 .ReactModal__Content::-webkit-scrollbar-thumb {
-  background: var(--gray-300);
-  border-radius: 3px;
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
 }
 
 .ReactModal__Content::-webkit-scrollbar-thumb:hover {
@@ -94,11 +76,14 @@
 @media (min-width: 769px) {
   .ReactModal__Overlay {
     align-items: center;
+    padding: 24px;
   }
 
   .ReactModal__Content {
-    border-radius: 24px;
-    max-height: 90vh;
+    border-radius: var(--radius-2xl);
+    max-height: 90dvh;
+    padding-bottom: 0;
+    box-shadow: var(--shadow-lg);
   }
 }
 
@@ -106,19 +91,33 @@
    BASE MAP STYLES
    ============================================ */
 #map {
-  height: 100vh;
-  width: 100vw;
-  background: var(--white);
+  /* dvh keeps the map flush with the viewport when mobile browser
+     chrome collapses — vh leaves a gap inside a WebView. */
+  height: 100dvh;
+  width: 100%;
+  background: var(--surface-muted);
+}
+
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: var(--surface-muted);
 }
 
 .leaflet-control-attribution {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border-radius: 8px !important;
-  padding: 4px 8px !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: var(--radius-xs) !important;
+  padding: 3px 8px !important;
   margin: 0 8px 8px 0 !important;
   font-size: 10px !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid var(--gray-200);
+  color: var(--text-muted) !important;
+  box-shadow: var(--shadow-xs);
+  border: 1px solid var(--border);
+}
+
+.leaflet-control-attribution a {
+  color: var(--brand-700) !important;
 }
 
 .leaflet-control-zoom {
@@ -130,24 +129,21 @@
    ============================================ */
 .map-loading-overlay-simple {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: #ffffff;
+  inset: 0;
+  background: var(--surface);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 99999;
+  z-index: var(--z-loading);
 }
 
 .loading-spinner-cyan {
-  width: 48px;
-  height: 48px;
-  border: 4px solid rgba(6, 182, 212, 0.2);
-  border-top-color: #06b6d4;
+  width: 44px;
+  height: 44px;
+  border: 3px solid var(--brand-100);
+  border-top-color: var(--brand-500);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.9s linear infinite;
 }
 
 /* ============================================
@@ -286,36 +282,41 @@
 /* ============================================
    SPINNER COMPONENTS
    ============================================ */
+.spinner,
+.spinner-small,
+.spinner-large {
+  border-radius: 50%;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.3);
+  border-top-color: var(--white);
+  animation: spin 0.8s linear infinite;
+}
+
 .spinner {
   width: 20px;
   height: 20px;
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  border-width: 3px;
 }
 
 .spinner-small {
   width: 18px;
   height: 18px;
-  border: 2.5px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+  border-width: 2.5px;
+  animation-duration: 0.7s;
 }
 
 .spinner-large {
   width: 40px;
   height: 40px;
-  border: 4px solid rgba(67, 56, 202, 0.2);
-  border-top-color: var(--primary-blue);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+  border-width: 4px;
+  border-color: var(--brand-100);
+  border-top-color: var(--brand-500);
+  animation-duration: 1s;
 }
 
 .spinner-primary {
-  border: 3px solid rgba(67, 56, 202, 0.2);
-  border-top-color: var(--primary-blue);
+  border-color: var(--brand-100);
+  border-top-color: var(--brand-500);
 }
 
 @keyframes spin {
@@ -330,6 +331,12 @@
   justify-content: center;
   gap: 10px;
   padding: 20px;
+}
+
+.loading-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
 .inline-spinner {
@@ -675,61 +682,63 @@
    ============================================ */
 .map-controls {
   position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 9999;
+  top: calc(20px + var(--safe-top));
+  right: calc(20px + var(--safe-right));
+  z-index: var(--z-map-controls);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .control-button {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  background: white;
-  border: 2px solid var(--primary-blue);
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  color: var(--brand-900);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease),
+    transform var(--dur-fast) var(--ease);
+  box-shadow: var(--shadow-sm);
 }
 
 .control-button:hover {
-  border-color: var(--primary-blue);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.2);
-  -webkit-transform: translateY(-2px);
-  -moz-transform: translateY(-2px);
-  -ms-transform: translateY(-2px);
-  -o-transform: translateY(-2px);
+  background: var(--white);
+  border-color: var(--brand-300);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 .control-button:active {
-  transform: scale(0.95);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transform: scale(0.94);
+  box-shadow: var(--shadow-xs);
 }
 
 .control-button.active {
-  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue) 100%);
-  border-color: var(--primary-blue);
-  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.4);
+  background: var(--brand-gradient);
+  border-color: transparent;
+  color: var(--on-brand);
+  box-shadow: var(--shadow-brand);
 }
 
 .control-button.active svg {
-  fill: white !important;
-  stroke: white !important;
+  fill: currentColor;
+  stroke: none;
 }
 
 .control-button svg {
-  transition: all 0.2s ease;
-  -webkit-transition: all 0.2s ease;
-  -moz-transition: all 0.2s ease;
-  -ms-transition: all 0.2s ease;
-  -o-transition: all 0.2s ease;
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+  transition: fill var(--dur) var(--ease);
 }
 
 /* ============================================
@@ -737,50 +746,53 @@
    ============================================ */
 .zoom-controls {
   position: absolute;
-  bottom: 140px;
-  right: 20px;
-  z-index: 9998;
+  bottom: calc(140px + var(--safe-bottom));
+  right: calc(20px + var(--safe-right));
+  z-index: var(--z-map-chrome);
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  background: white;
-  border-radius: 16px;
-  padding: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 2px solid var(--gray-200);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
+  padding: 6px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
 }
 
 .zoom-button {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: var(--radius-md);
   background: transparent;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
-  color: var(--primary-blue);
-  font-size: 28px;
-  font-weight: 400;
-  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+  color: var(--brand-900);
+  font-size: 24px;
+  font-weight: 500;
   line-height: 1;
 }
 
 .zoom-button:hover {
-  background: var(--gray-50);
+  background: var(--brand-50);
+  color: var(--brand-700);
 }
 
 .zoom-button:active {
-  background: var(--gray-100);
-  transform: scale(0.95);
+  background: var(--brand-100);
+  transform: scale(0.92);
 }
 
 .zoom-divider {
   height: 1px;
-  background: var(--gray-200);
-  margin: 4px 8px;
+  background: var(--border);
+  margin: 3px 6px;
 }
 
 /* ============================================
@@ -789,113 +801,152 @@
 .modal-header {
   position: sticky;
   top: 0;
-  background: white;
+  background: var(--surface);
   z-index: 10;
-  padding: 24px 24px 16px;
-  border-bottom: 1px solid var(--gray-100);
+  padding: 12px 24px 16px;
+  border-bottom: 1px solid var(--border);
 }
 
 .modal-drag-handle {
-  width: 40px;
-  height: 4px;
-  background: var(--gray-300);
-  border-radius: 4px;
-  margin: 0 auto 20px;
+  width: 44px;
+  height: 5px;
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
+  margin: 0 auto 18px;
 }
 
 .modal-title-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
 }
 
 .modal-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--brand-gradient);
+  color: var(--on-brand);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: var(--shadow-brand);
 }
 
 .modal-title {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
-  color: var(--gray-900);
+  letter-spacing: -0.02em;
+  color: var(--text);
   margin: 0;
   flex: 1;
 }
 
 .modal-close-btn {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
-  border-radius: 12px;
-  background: var(--gray-100);
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s;
-  color: var(--gray-600);
+  transition: background var(--dur) var(--ease),
+    color var(--dur) var(--ease), transform var(--dur-fast) var(--ease);
+  color: var(--text-muted);
   flex-shrink: 0;
-  -webkit-tap-highlight-color: transparent;
 }
 
 .modal-close-btn svg {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
 }
 
 .modal-close-btn:hover {
-  background: var(--gray-200);
-  transform: scale(1.05);
-}
-
-.modal-close-btn:hover svg path {
-  stroke: #374151;
+  background: var(--border);
+  color: var(--text);
 }
 
 .modal-close-btn:active {
-  background: var(--gray-300);
-  transform: scale(0.95);
-}
-
-.modal-close-btn:active svg path {
-  stroke: #1f2937;
+  background: var(--border-strong);
+  transform: scale(0.92);
 }
 
 .modal-body {
-  padding: 24px;
+  padding: 20px 24px 24px;
 }
 
 .form-group {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .form-label {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   font-weight: 600;
-  font-size: 16px;
-  color: var(--gray-700);
+  font-size: 15px;
+  color: var(--text-muted);
 }
 
 .label-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  color: var(--on-brand);
+  box-shadow: var(--shadow-xs);
+}
+
+/* Collapsed "advanced" group inside the filters sheet. */
+.advanced-group {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-bottom: 20px;
+}
+
+.advanced-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 2px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-muted);
+  list-style: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.advanced-summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-summary:hover {
+  color: var(--text);
+}
+
+.advanced-chevron {
+  transition: transform var(--dur) var(--ease);
+  flex-shrink: 0;
+}
+
+.advanced-group[open] .advanced-chevron {
+  transform: rotate(180deg);
+}
+
+.advanced-body {
+  margin-top: 8px;
+  margin-bottom: 0;
 }
 
 .start-icon {
@@ -915,28 +966,39 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 18px 24px;
-  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-  color: white;
+  padding: 16px 24px;
+  background: var(--brand-gradient);
+  color: var(--on-brand);
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   font-weight: 600;
-  font-size: 17px;
+  font-size: 16px;
+  letter-spacing: -0.01em;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(67, 56, 202, 0.3);
-  min-height: 56px;
-  -webkit-tap-highlight-color: transparent;
+  transition: box-shadow var(--dur) var(--ease),
+    transform var(--dur-fast) var(--ease), filter var(--dur) var(--ease);
+  box-shadow: var(--shadow-brand);
+  min-height: 54px;
+}
+
+.primary-button svg {
+  stroke: currentColor;
+}
+
+.primary-button:hover:not(:disabled) {
+  filter: brightness(1.05);
+  box-shadow: 0 8px 24px rgba(6, 182, 212, 0.4);
 }
 
 .primary-button:active:not(:disabled) {
   transform: scale(0.98);
-  box-shadow: 0 2px 6px rgba(67, 56, 202, 0.2);
+  box-shadow: var(--shadow-sm);
 }
 
 .primary-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
   background: linear-gradient(135deg, var(--gray-400) 0%, var(--gray-500) 100%);
 }
 
@@ -945,18 +1007,22 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 18px 24px;
-  background: white;
-  color: var(--gray-600);
-  border: 2px solid var(--gray-200);
-  border-radius: 16px;
+  padding: 16px 24px;
+  background: var(--surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   font-weight: 600;
-  font-size: 17px;
+  font-size: 16px;
   cursor: pointer;
-  transition: all 0.2s;
-  min-height: 56px;
+  transition: all var(--dur) var(--ease);
+  min-height: 54px;
   min-width: 100px;
-  -webkit-tap-highlight-color: transparent;
+}
+
+.secondary-button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-muted);
 }
 
 .secondary-button:active:not(:disabled) {
@@ -972,18 +1038,18 @@
 }
 
 .swap-button {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  background: white;
-  border: 2px solid var(--gray-200);
-  color: var(--gray-500);
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all var(--dur) var(--ease);
+  box-shadow: var(--shadow-xs);
 }
 
 .swap-button svg {
@@ -992,17 +1058,17 @@
 }
 
 .swap-button:active {
-  border-color: var(--primary-blue);
-  color: var(--primary-blue);
+  border-color: var(--brand-500);
+  color: var(--brand-500);
   transform: rotate(180deg) scale(0.95);
-  box-shadow: 0 4px 12px rgba(67, 56, 202, 0.2);
+  box-shadow: var(--shadow-sm);
 }
 
 .action-buttons {
   display: flex;
   gap: 12px;
   margin-top: 24px;
-  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-bottom: var(--safe-bottom);
 }
 
 /* ============================================
@@ -1154,17 +1220,18 @@
 .bus-stop-modal-header {
   position: sticky;
   top: 0;
-  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+  background: var(--brand-gradient);
+  color: var(--on-brand);
   z-index: 10;
-  padding: 24px 20px 20px;
-  border-radius: 24px 24px 0 0;
+  padding: 12px 20px 20px;
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
 }
 
 .bus-stop-modal-drag {
-  width: 40px;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
+  width: 44px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: var(--radius-full);
   margin: 0 auto 16px;
 }
 
@@ -1172,87 +1239,94 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .bus-stop-modal-icon {
-  width: 48px;
-  height: 48px;
-  background: white;
-  border-radius: 14px;
+  width: 46px;
+  height: 46px;
+  background: var(--white);
+  color: var(--brand-900);
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(8, 47, 73, 0.18);
 }
 
 .bus-stop-modal-title {
-  font-size: 22px;
+  font-size: 21px;
   font-weight: 700;
-  color: white;
+  letter-spacing: -0.02em;
+  color: var(--on-brand);
   margin: 0;
   flex: 1;
   line-height: 1.3;
 }
 
 .bus-stop-modal-close {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  min-height: 40px;
-  background: rgba(255, 255, 255, 0.2);
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.18);
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: white;
-  transition: all 0.2s;
+  color: var(--on-brand);
+  transition: background var(--dur) var(--ease),
+    transform var(--dur-fast) var(--ease);
   flex-shrink: 0;
-  -webkit-tap-highlight-color: transparent;
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .bus-stop-modal-close svg {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
 }
 
 .bus-stop-modal-close:hover {
   background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.05);
 }
 
 .bus-stop-modal-close:active {
   background: rgba(255, 255, 255, 0.4);
-  transform: scale(0.95);
+  transform: scale(0.92);
 }
 
 .bus-stop-modal-info {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
+  padding: 11px 14px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-md);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .bus-stop-modal-info-item {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: white;
+  color: var(--on-brand);
   font-size: 13px;
   font-weight: 500;
 }
 
+.bus-stop-modal-info-item svg {
+  opacity: 0.85;
+}
+
 .bus-stop-modal-body {
   padding: 20px;
-  background: white;
+  background: var(--surface);
 }
 
 .bus-stop-section {
@@ -1267,72 +1341,56 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
-  color: var(--gray-900);
+  color: var(--text);
   margin-bottom: 14px;
   padding-bottom: 10px;
-  border-bottom: 2px solid var(--gray-100);
+  border-bottom: 1px solid var(--border);
 }
 
 .bus-stop-section-icon {
-  width: 32px;
-  height: 32px;
-  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-  border-radius: 10px;
+  width: 30px;
+  height: 30px;
+  background: var(--brand-gradient);
+  color: var(--on-brand);
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
+.bus-stop-section-icon svg {
+  stroke: currentColor;
+}
+
 .bus-lines-horizontal {
   display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: 4px;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-}
-
-.bus-lines-horizontal::-webkit-scrollbar {
-  height: 6px;
-}
-
-.bus-lines-horizontal::-webkit-scrollbar-track {
-  background: var(--gray-100);
-  border-radius: 3px;
-}
-
-.bus-lines-horizontal::-webkit-scrollbar-thumb {
-  background: var(--gray-300);
-  border-radius: 3px;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 2px;
+  margin: 0;
+  list-style: none;
 }
 
 .bus-line-badge {
   flex: 0 0 auto;
-  padding: 14px 20px;
-  background: white;
-  border: 2px solid;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 16px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1.5px solid;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  font-size: 14px;
   text-align: center;
-  transition: all 0.2s;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  min-width: 80px;
-  scroll-snap-align: start;
+  transition: transform var(--dur-fast) var(--ease),
+    box-shadow var(--dur) var(--ease);
+  min-width: 64px;
 }
 
 .bus-line-badge:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.bus-line-badge:active {
-  transform: scale(0.95);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
 .bus-stop-actions {
@@ -1348,25 +1406,23 @@
   justify-content: center;
   gap: 8px;
   padding: 14px 18px;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--dur) var(--ease);
   border: none;
   min-height: 48px;
-  -webkit-tap-highlight-color: transparent;
 }
 
 .bus-stop-action-primary {
-  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-  color: white;
-  box-shadow: 0 2px 8px rgba(67, 56, 202, 0.3);
+  background: var(--brand-gradient);
+  color: var(--on-brand);
+  box-shadow: var(--shadow-brand);
 }
 
 .bus-stop-action-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(67, 56, 202, 0.4);
+  filter: brightness(1.05);
 }
 
 .bus-stop-action-primary:active {
@@ -1374,196 +1430,219 @@
 }
 
 .bus-stop-action-secondary {
-  background: white;
-  color: var(--primary-blue);
-  border: 2px solid var(--primary-blue);
+  background: var(--surface);
+  color: var(--brand-600);
+  border: 1.5px solid var(--brand-200);
 }
 
 .bus-stop-action-secondary:hover {
-  background: #eef2ff;
+  background: var(--brand-50);
+  border-color: var(--brand-300);
 }
 
 .bus-stop-action-secondary:active {
   transform: scale(0.98);
-  background: #e0e7ff;
+  background: var(--brand-100);
 }
 
 /* ============================================
    LEAFLET POPUP CUSTOMIZATION
    ============================================ */
-.leaflet-popup {
-  top: -75px !important;
-}
-
+/* Note: popup offset is handled per-icon via `popupAnchor` (see icons.ts and
+   createStopIcon in App.tsx), not by shifting `.leaflet-popup` globally. */
 .leaflet-popup-content-wrapper {
-  border-radius: 16px !important;
-  box-shadow: 0 4px 10px rgb(6, 182, 212, 0.5) !important;
-  border: 1px solid var(--primary-blue) !important;
-  padding: 5px 28px 5px 20px !important;
-  background: white !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+  border: 1px solid var(--border) !important;
+  padding: 0 !important;
+  background: var(--surface) !important;
   overflow: hidden !important;
-  -webkit-border-radius: 16px !important;
-  -moz-border-radius: 16px !important;
-  -ms-border-radius: 16px !important;
-  -o-border-radius: 16px !important;
 }
 
 .leaflet-popup-content {
-  font-family: system-ui, -apple-system, sans-serif !important;
+  font-family: var(--font-sans) !important;
   margin: 0 !important;
   padding: 0 !important;
+  width: auto !important;
+  min-width: 200px;
   max-width: 280px !important;
+  line-height: 1.45;
 }
 
 .leaflet-popup-close-button {
-  font-weight: bold !important;
-  color: var(--primary-blue) !important;
-  padding: 2px !important;
+  width: 26px !important;
+  height: 26px !important;
+  top: 8px !important;
+  right: 8px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full) !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  color: var(--brand-900) !important;
+  font-weight: 700 !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  padding: 0 !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: background var(--dur) var(--ease);
+}
+
+.leaflet-popup-close-button:hover {
+  background: var(--white) !important;
+  color: var(--brand-600) !important;
 }
 
 .leaflet-popup-tip {
-  display: none !important;
-  background: white !important;
-  border: 2px solid var(--primary-blue) !important;
-  border-top: none !important;
-  border-right: none !important;
+  background: var(--surface) !important;
+  border: none !important;
+  box-shadow: none;
 }
 
-.popup-header {
-  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-  padding: 14px 16px;
+/* ---- Shared popup shell (bus stops on a route, buses) ---- */
+.map-popup {
+  min-width: 200px;
+}
+
+.map-popup__header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  /* Right padding clears Leaflet's close button, which stays on the
+     physical right even in RTL. */
+  padding: 12px 40px 12px 14px;
+  background: var(--brand-gradient);
+  color: var(--on-brand);
 }
 
-.popup-icon {
-  width: 36px;
-  height: 36px;
-  background: white;
-  border-radius: 10px;
+.map-popup__icon {
+  width: 32px;
+  height: 32px;
+  background: var(--white);
+  color: var(--brand-900);
+  border-radius: var(--radius-xs);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.popup-title {
-  color: white;
+.map-popup__title {
   font-weight: 700;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.3;
   flex: 1;
 }
 
-.popup-body {
-  padding: 14px 16px;
-  background: white;
+.map-popup__body {
+  padding: 12px 14px;
+  background: var(--surface);
 }
 
-.popup-info-row {
+.map-popup__row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 0;
-  color: var(--gray-700);
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.popup-info-row svg {
-  flex-shrink: 0;
-  color: var(--primary-blue);
-}
-
-.popup-info-label {
-  font-weight: 600;
-  color: var(--gray-900);
-  min-width: 60px;
-}
-
-.popup-divider {
-  height: 1px;
-  background: var(--gray-200);
-  margin: 8px 0;
-}
-
-.popup-actions {
-  padding: 12px 16px;
-  background: var(--gray-50);
-  display: flex;
   gap: 8px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  background: var(--brand-50);
+  border: 1px solid var(--brand-100);
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand-600);
 }
 
-.popup-button {
-  flex: 1;
-  padding: 10px 16px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
+.map-popup__row svg {
+  stroke: currentColor;
+}
+
+/* Action badge — colour comes from the data-action variants below. */
+.map-popup__badge {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  transition: all 0.2s;
+  padding: 8px 12px;
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--brand-50);
+  color: var(--brand-900);
 }
 
-.popup-button-primary {
-  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-  color: white;
+.map-popup__badge[data-action="walk"] {
+  background: var(--surface-sunken);
+  color: var(--gray-700);
 }
 
-.popup-button-secondary {
-  background: white;
-  color: var(--primary-blue);
-  border: 2px solid var(--primary-blue);
+.map-popup__badge[data-action="board"] {
+  background: var(--green-soft);
+  color: var(--green-ink);
 }
 
-.popup-button:active {
-  transform: scale(0.95);
+.map-popup__badge[data-action="arrive"] {
+  background: var(--red-soft);
+  color: var(--red-ink);
 }
 
-.popup-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
+.map-popup__badge[data-action="transfer"] {
+  background: var(--orange-soft);
+  color: var(--orange-ink);
+}
+
+/* ---- Compact bus popup ---- */
+.bus-popup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 40px 12px 14px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.bus-popup__icon {
+  color: var(--brand-500);
 }
 
 /* ============================================
    BUS MARKERS
    ============================================ */
 .bus-name {
-  color: var(--primary-blue);
+  color: var(--brand-600);
   font-size: 0.75rem;
   text-align: center;
   font-weight: 700;
   width: 140px;
   transform: translateX(calc(-50% + 19px));
   transform-origin: center;
-  background: white;
-  padding: 6px 12px;
-  border-radius: 20px;
+  background: var(--surface);
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  box-shadow: 0 2px 8px rgba(67, 56, 202, 0.2);
-  border: 2px solid var(--primary-blue);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--brand-200);
 }
 
+/* Rotates to the device heading; --angle is set inline per marker. */
 .bus-direction {
   position: relative;
   transform: rotate(var(--angle, 0deg));
-  transition: transform 600ms ease-in-out;
+  transition: transform 600ms var(--ease);
 }
 
 .bus-icon {
-  transition: transform 600ms ease-in-out;
+  transition: transform 600ms var(--ease);
 }
 
 .custom-bus-stop-icon,
-.user-location-icon {
+.user-location-icon,
+.bus-stop-marker {
   background: transparent !important;
   border: none !important;
 }
@@ -1573,16 +1652,60 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  filter: drop-shadow(0 2px 8px rgba(6, 182, 216, 0.2));
-  -webkit-filter: drop-shadow(0 2px 8px rgba(6, 182, 216, 0.2));
+  /* Drives the vehicle glyph, its ring and the heading arrow. */
+  color: var(--bus-marker);
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.3));
+}
+
+/* Static bus stops.
+   Ranked below live vehicles: an ordinary stop is a quiet dot, while an
+   interchange (served by 2+ lines) is larger and darker so the eye has
+   somewhere to land instead of meeting ~83 identical markers. */
+.bus-stop-marker__dot {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--white);
+  border: 2.5px solid var(--brand-500);
+  box-shadow: 0 1px 3px rgba(8, 47, 73, 0.3);
+  transition: transform var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease);
+}
+
+.bus-stop-marker__dot--interchange {
+  border-width: 3.5px;
+  border-color: var(--brand-900);
+  box-shadow: 0 2px 5px rgba(8, 47, 73, 0.4);
+}
+
+.bus-stop-marker:hover .bus-stop-marker__dot {
+  transform: scale(1.35);
+  box-shadow: 0 3px 10px rgba(8, 47, 73, 0.45);
+}
+
+/* Retained for the legacy busStopIcon export. */
+.bus-stop-marker__tile {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xs);
+  background: var(--brand-gradient);
+  color: var(--on-brand);
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 6px rgba(8, 47, 73, 0.3);
+  transition: transform var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease);
+}
+
+.bus-stop-marker:hover .bus-stop-marker__tile {
+  transform: scale(1.2);
+  box-shadow: 0 4px 12px rgba(8, 47, 73, 0.4);
 }
 
 .leaflet-marker-icon {
-  transition: transform 0.2s ease-out;
-}
-
-.leaflet-marker-icon:hover {
-  transform: scale(1.05);
+  transition: transform var(--dur) var(--ease-out);
 }
 
 /* ============================================
@@ -2579,47 +2702,73 @@
 /* ============================================
    CUSTOM STOP ICONS FOR ROUTE MAP
    ============================================ */
-.custom-stop-icon {
-  background: transparent !important;
-  border: none !important;
-}
-
-.custom-stop-icon>div {
-  cursor: pointer;
-  transform-origin: center;
-  transition: all 0.2s ease;
-}
-
-.custom-stop-icon>div:hover {
-  transform: scale(1.2) !important;
-  z-index: 1000 !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5) !important;
-}
-
-.custom-stop-icon>div:active {
-  transform: scale(0.95) !important;
-}
-
+.custom-stop-icon,
 .custom-bus-stop-icon {
   background: transparent !important;
   border: none !important;
 }
 
-.custom-bus-stop-icon>div {
+.custom-stop-icon > div,
+.custom-bus-stop-icon > div {
   cursor: pointer;
   transform-origin: center;
-  transition: all 0.2s ease;
+  transition: transform var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease);
 }
 
-.custom-bus-stop-icon>div:hover {
-  transform: scale(1.15) !important;
-  z-index: 1000 !important;
-  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.4) !important;
-  border-color: #0891b2 !important;
+/* Intermediate stop along a leg — colour comes from the line. */
+.route-stop-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--dot-color, var(--brand-500));
+  border: 2px solid var(--white);
+  box-shadow: 0 1px 3px rgba(8, 47, 73, 0.35);
 }
 
-.custom-bus-stop-icon>div:active {
-  transform: scale(0.95) !important;
+.custom-bus-stop-icon > div:hover {
+  transform: scale(1.6);
+}
+
+/* Board / arrive / transfer / walk pins. */
+.route-stop-pin {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 4px solid var(--white);
+  box-shadow: 0 4px 12px rgba(8, 47, 73, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-500);
+}
+
+.route-stop-pin[data-action="board"] {
+  background: var(--green);
+}
+
+.route-stop-pin[data-action="arrive"] {
+  background: var(--red);
+}
+
+.route-stop-pin[data-action="transfer"] {
+  background: var(--orange);
+  border-width: 3px;
+}
+
+.route-stop-pin[data-action="walk"] {
+  background: var(--gray-500);
+  border-width: 3px;
+}
+
+.custom-stop-icon > div:hover {
+  transform: scale(1.12);
+  box-shadow: 0 8px 20px rgba(8, 47, 73, 0.45);
+}
+
+.custom-stop-icon > div:active,
+.custom-bus-stop-icon > div:active {
+  transform: scale(0.95);
 }
 
 /* ============================================
@@ -2699,8 +2848,8 @@
   }
 
   .map-controls {
-    right: 12px;
-    top: 12px;
+    right: calc(12px + var(--safe-right));
+    top: calc(12px + var(--safe-top));
     gap: 8px;
   }
 
@@ -2712,15 +2861,14 @@
   .control-button {
     width: 48px;
     height: 48px;
-    border-radius: 14px;
+    border-radius: var(--radius-md);
   }
 
   .zoom-controls {
-    bottom: 100px;
-    right: 12px;
-    padding: 6px;
-    border-radius: 14px;
-    gap: 1px;
+    bottom: calc(100px + var(--safe-bottom));
+    right: calc(12px + var(--safe-right));
+    padding: 5px;
+    border-radius: var(--radius-md);
   }
 
   [dir="rtl"] .zoom-controls {
@@ -2731,8 +2879,8 @@
   .zoom-button {
     width: 40px;
     height: 40px;
-    border-radius: 10px;
-    font-size: 24px;
+    border-radius: var(--radius-sm);
+    font-size: 22px;
   }
 
   .zoom-divider {
@@ -2762,7 +2910,7 @@
   }
 
   .modal-header {
-    padding: 20px 18px 14px;
+    padding: 12px 18px 14px;
   }
 
   .modal-body {
@@ -2792,8 +2940,8 @@
   }
 
   .bus-line-badge {
-    min-width: 70px;
-    padding: 12px 16px;
+    min-width: 60px;
+    padding: 9px 14px;
   }
 }
 
@@ -2833,9 +2981,9 @@
   }
 
   .control-button {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
+    width: 46px;
+    height: 46px;
+    border-radius: var(--radius-md);
   }
 
   .control-button svg {
@@ -2844,9 +2992,9 @@
   }
 
   .map-controls {
-    right: 10px;
-    top: 10px;
-    gap: 6px;
+    right: calc(10px + var(--safe-right));
+    top: calc(10px + var(--safe-top));
+    gap: 8px;
   }
 
   [dir="rtl"] .map-controls {
@@ -2855,11 +3003,10 @@
   }
 
   .zoom-controls {
-    bottom: 90px;
-    right: 10px;
-    padding: 5px;
-    border-radius: 12px;
-    gap: 0;
+    bottom: calc(90px + var(--safe-bottom));
+    right: calc(10px + var(--safe-right));
+    padding: 4px;
+    border-radius: var(--radius-md);
   }
 
   [dir="rtl"] .zoom-controls {
@@ -2868,10 +3015,10 @@
   }
 
   .zoom-button {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    font-size: 22px;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-sm);
+    font-size: 21px;
   }
 
   .zoom-divider {
@@ -2885,7 +3032,7 @@
   }
 
   .modal-header {
-    padding: 16px 14px 12px;
+    padding: 10px 16px 12px;
   }
 
   .modal-body {
@@ -2935,7 +3082,7 @@
   }
 
   .bus-stop-modal-header {
-    padding: 20px 16px 16px;
+    padding: 10px 16px 16px;
   }
 
   .bus-stop-modal-title {
@@ -2947,9 +3094,9 @@
   }
 
   .bus-line-badge {
-    min-width: 60px;
-    padding: 10px 14px;
-    font-size: 14px;
+    min-width: 56px;
+    padding: 8px 13px;
+    font-size: 13px;
   }
 
   .step-stops-list {
@@ -3004,9 +3151,10 @@
    ============================================ */
 @media (max-width: 375px) {
   .control-button {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
+    /* Held at 44px — the minimum comfortable touch target. */
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-sm);
   }
 
   .control-button svg {
@@ -3015,8 +3163,8 @@
   }
 
   .map-controls {
-    right: 8px;
-    top: 8px;
+    right: calc(8px + var(--safe-right));
+    top: calc(8px + var(--safe-top));
   }
 
   [dir="rtl"] .map-controls {
@@ -3025,10 +3173,10 @@
   }
 
   .zoom-controls {
-    bottom: 85px;
-    right: 8px;
+    bottom: calc(85px + var(--safe-bottom));
+    right: calc(8px + var(--safe-right));
     padding: 4px;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
   }
 
   [dir="rtl"] .zoom-controls {
@@ -3037,9 +3185,9 @@
   }
 
   .zoom-button {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-xs);
     font-size: 20px;
   }
 
@@ -3077,24 +3225,40 @@
 /* ============================================
    ACCESSIBILITY
    ============================================ */
+:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  outline: 3px solid var(--primary-blue);
+  outline: 2px solid var(--brand-500);
   outline-offset: 2px;
+  box-shadow: var(--ring-brand);
+}
+
+/* Leaflet puts tabindex on the map pane; its focus ring is noise. */
+.leaflet-container:focus,
+.leaflet-container:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 
+  .bus-direction,
+  .bus-icon,
   .step-stop-item-wrapper,
   .step-stops-timeline,
   .step-stop-dot,
@@ -3182,22 +3346,36 @@ body:has(.route-results-wrapper) .leaflet-popup {
 
 /* Map controls - WebView position (below search bar) */
 .map-controls-webview {
-  top: 140px !important;
-  /* Move down to avoid React Native search bar */
+  /* Pushed down to clear the React Native search bar above the WebView. */
+  top: calc(140px + var(--safe-top)) !important;
 }
 
-/* Line label icons */
+/* Line label icons — the "19F"-style badges along a route */
 .line-label-icon {
   background: transparent !important;
   border: none !important;
 }
 
-.line-label-icon>div {
+.route-line-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--surface);
+  color: var(--line-color, var(--brand-500));
+  border: 2px solid var(--line-color, var(--brand-500));
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  font-size: 11px;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transform: translateX(-50%);
+  transition: transform var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease);
 }
 
-.line-label-icon>div:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+.route-line-label:hover {
+  transform: translateX(-50%) scale(1.08);
+  box-shadow: var(--shadow-md);
 }
