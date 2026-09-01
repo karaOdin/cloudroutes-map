@@ -87,6 +87,29 @@ function mergePositions(
   return next;
 }
 
+/**
+ * Device records arrive about twice a second and almost always differ only in
+ * `lastUpdate`, which ticks whether or not anything the map draws has changed.
+ * Writing those through would re-render every marker twice a second for no
+ * visible difference, so the cache is only replaced when a field the UI
+ * actually reads has moved.
+ *
+ * `lastUpdate` is not one of them: it is only the third fallback in
+ * `busFreshness`, behind `fixTime` and `deviceTime`, which arrive on the
+ * position channel and are always present in practice.
+ */
+const DEVICE_FIELDS = [
+  "status",
+  "name",
+  "category",
+  "uniqueId",
+  "disabled",
+] as const;
+
+function deviceChanged(a: Device, b: Device): boolean {
+  return DEVICE_FIELDS.some((field) => a[field] !== b[field]);
+}
+
 function mergeDevices(
   current: Device[] | undefined,
   incoming: Device[]
@@ -94,6 +117,7 @@ function mergeDevices(
   if (!current) return current;
 
   const pending = new Map(incoming.map((d) => [d.id, d]));
+  let changed = false;
 
   const next = current.map((device) => {
     const update = pending.get(device.id);
@@ -102,10 +126,18 @@ function mergeDevices(
 
     pending.delete(device.id);
 
+    if (!deviceChanged(device, update)) return device;
+
+    changed = true;
+
     return { ...device, ...update };
   });
 
-  if (pending.size > 0) next.push(...pending.values());
+  // A tracker that was not in the initial snapshot is always worth adding.
+  if (pending.size > 0) {
+    next.push(...pending.values());
+    changed = true;
+  }
 
-  return next;
+  return changed ? next : current;
 }

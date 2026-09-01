@@ -31,6 +31,15 @@ async function getDevices() {
  */
 const FALLBACK_POLL_MS = 12_000;
 
+/**
+ * Spread the fallback across clients. If the feed goes down it goes down for
+ * everyone at once, and every rider's app would otherwise start polling the
+ * same endpoint on the same 12s beat — a synchronised load spike on a backend
+ * that is already having a bad time. Fixed once per session so the interval
+ * does not change under react-query on every render.
+ */
+const POLL_JITTER_MS = Math.floor(Math.random() * 5_000);
+
 export function useDevicePosition() {
   const socketConnected = useTraccarSocketStatus();
 
@@ -45,7 +54,9 @@ export function useDevicePosition() {
         queryKey: ["positions"],
         queryFn: getPositions,
         refetchOnWindowFocus: true,
-        refetchInterval: socketConnected ? false : FALLBACK_POLL_MS,
+        refetchInterval: socketConnected
+          ? false
+          : FALLBACK_POLL_MS + POLL_JITTER_MS,
       },
       {
         queryKey: ["devices"],
