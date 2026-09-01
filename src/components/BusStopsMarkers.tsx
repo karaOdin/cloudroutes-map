@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useStops } from "@cloudroutes/query/lines";
 import { QUERY_KEYS } from "@cloudroutes/query";
-import { busStopIconFor } from "../icons.ts";
+import { busStopIconFor, MINOR_STOP_MIN_ZOOM } from "../icons.ts";
 import { Marker } from "react-leaflet";
 import { useFilterStore } from "../hooks/use-filter-store.ts";
+import { useMapZoom } from "../hooks/use-map-zoom.ts";
+import { useFocusStore } from "../hooks/use-focus-store.ts";
 import { MapFilters } from "../types.ts";
 import  { useState } from "react";
 import { BusStopModal } from "./BusStopModal";
@@ -20,6 +22,8 @@ type StopMarker = {
 
 export function BusStopsMarkers() {
   const filters = useFilterStore((state) => state.filters);
+  const zoom = useMapZoom();
+  const focusedLine = useFocusStore((state) => state.focusedLine);
   const [selectedStop, setSelectedStop] = useState<StopMarker | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -45,7 +49,14 @@ export function BusStopsMarkers() {
 
   if (!stops || filters.stop === "none") return <></>;
 
-  const filteredStops = filteredStopsData(stops, filters);
+  // Filtering is untouched; this only decides how much of the result is worth
+  // drawing at the current zoom. Zoomed out, minor stops collapse away and the
+  // interchanges carry the shape of the network.
+  const filteredStops = visibleStops(
+    filteredStopsData(stops, filters),
+    zoom,
+    focusedLine
+  );
 
   const handleMarkerClick = (stop: StopMarker) => {
     setSelectedStop(stop);
@@ -63,8 +74,9 @@ export function BusStopsMarkers() {
         <Marker
           key={stop.id}
           position={stop.coordinate}
-          icon={busStopIconFor(stop.lines.length)}
+          icon={busStopIconFor(stop.lines)}
           title={stop.title}
+          opacity={servesFocusedLine(stop, focusedLine) ? 1 : 0.2}
           eventHandlers={{
             click: () => handleMarkerClick(stop),
           }}
@@ -98,4 +110,29 @@ function filteredStopsData(
   }
 
   return stops;
+}
+
+function servesFocusedLine(
+  stop: StopMarker,
+  focusedLine: string | null
+): boolean {
+  if (!focusedLine) return true;
+
+  return stop.lines.some((line) => line.name === focusedLine);
+}
+
+function visibleStops(
+  stops: StopMarker[],
+  zoom: number,
+  focusedLine: string | null
+): StopMarker[] {
+  if (zoom >= MINOR_STOP_MIN_ZOOM) return stops;
+
+  // Zoomed out the interchanges carry the shape of the network on their own —
+  // except on a focused line, where its own stops are the whole point.
+  return stops.filter(
+    (stop) =>
+      stop.lines.length > 1 ||
+      (!!focusedLine && stop.lines.some((line) => line.name === focusedLine))
+  );
 }

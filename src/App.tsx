@@ -16,6 +16,10 @@ import { Env } from "./config/env.ts";
 import { darkenColor, initTraccarClient } from "./helpers.ts";
 import { DevicePositionMarkers } from "./components/BusMarkers";
 import { BusStopsMarkers } from "./components/BusStopsMarkers.tsx";
+import {
+  FocusBanner,
+  FocusController,
+} from "./components/FocusLayer.tsx";
 import Modal from "react-modal";
 import { useEffect, useRef, useState } from "react";
 import { Filters } from "./components/Filters.tsx";
@@ -685,6 +689,7 @@ function App() {
       zoomControl={false}
     >
       <TileLayer url={leafletProvider.url} />
+      <FocusController />
       <DevicePositionMarkers />
       {/* Regular map layers - show when NO route */}
       {!routeData && (
@@ -703,6 +708,7 @@ function App() {
       )}
 
       <ZoomControl />
+      <FocusBanner />
 
       {/* Map Controls - position lower when in WebView to avoid search bar */}
       <div

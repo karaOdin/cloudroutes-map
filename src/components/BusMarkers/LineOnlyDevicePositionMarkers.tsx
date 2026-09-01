@@ -3,8 +3,10 @@ import { useDevicePosition } from "../../hooks/use-device-position.ts";
 import { BusMarker } from "./BusMarker.tsx";
 import { useCallback } from "react";
 import { Device, DeviceEvent, MapFilters, PositionEvent } from "../../types.ts";
-import { isPositionEvent } from "../../helpers.ts";
+import { busFreshness, busPositionAge, isPositionEvent } from "../../helpers.ts";
 import { useDevicePositionListener } from "../../hooks/use-device-position-listener.ts";
+import { useNow } from "../../hooks/use-now.ts";
+import { useFocusedDeviceIds } from "../../hooks/use-focused-device-ids.ts";
 import { useLines } from "@cloudroutes/query/lines";
 import { Line } from "@cloudroutes/core/lines";
 import { useFilterStore } from "../../hooks/use-filter-store.ts";
@@ -14,6 +16,8 @@ export function LineOnlyDevicePositionMarkers() {
   const filters = useFilterStore((state) => state.filters);
   const queryClient = useQueryClient();
   const [positions, devices] = useDevicePosition();
+  const now = useNow();
+  const focusedDeviceIds = useFocusedDeviceIds();
   const { data: lines } = useLines();
 
   const onPositionUpdate = useCallback(
@@ -55,11 +59,19 @@ export function LineOnlyDevicePositionMarkers() {
 
     if (!position) return null;
 
+    // See AllDevicePositionMarkers: a fix this old is misleading, not useful.
+    const freshness = busFreshness(device, position, now);
+
+    if (freshness === "offline") return null;
+
     return (
       <BusMarker
         key={device.id + "_" + position.latitude + "_" + position.longitude}
         device={device}
         position={position}
+        freshness={freshness}
+        age={busPositionAge(device, position, now)}
+        dimmed={!!focusedDeviceIds && !focusedDeviceIds.has(device.uniqueId)}
       />
     );
   });

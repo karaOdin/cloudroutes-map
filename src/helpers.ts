@@ -161,3 +161,68 @@ export function mapLinesToSelectOptions(
 
   return basicOptions;
 }
+
+/**
+ * VEHICLE FRESHNESS
+ *
+ * Traccar keeps returning a device's last known position indefinitely, so a
+ * bus that stopped reporting hours ago still arrives with coordinates and
+ * would otherwise be drawn as if it were live. That is worse than clutter:
+ * the vehicle may be kilometres from where the map shows it.
+ */
+
+export const BUS_STALE_AFTER_MS = 5 * 60 * 1000;
+export const BUS_OFFLINE_AFTER_MS = 30 * 60 * 1000;
+
+export type BusFreshness = "live" | "stale" | "offline";
+
+type FreshnessDevice = { status?: string; lastUpdate?: string };
+type FreshnessPosition = {
+  fixTime?: string;
+  deviceTime?: string;
+  outdated?: boolean;
+};
+
+/** Age of a vehicle's last fix in ms, or NaN when there is no usable stamp. */
+export function busPositionAge(
+  device: FreshnessDevice,
+  position: FreshnessPosition,
+  now: number = Date.now()
+): number {
+  const stamp = position.fixTime || position.deviceTime || device.lastUpdate;
+
+  if (!stamp) return NaN;
+
+  const at = new Date(stamp).getTime();
+
+  return Number.isNaN(at) ? NaN : now - at;
+}
+
+export function busFreshness(
+  device: FreshnessDevice,
+  position: FreshnessPosition,
+  now: number = Date.now()
+): BusFreshness {
+  const age = busPositionAge(device, position, now);
+
+  // No timestamp at all: fall back to Traccar's own view of the device.
+  if (Number.isNaN(age)) return device.status === "online" ? "live" : "offline";
+
+  if (age >= BUS_OFFLINE_AFTER_MS) return "offline";
+  if (age >= BUS_STALE_AFTER_MS || position.outdated) return "stale";
+
+  return "live";
+}
+
+/** Coarse "12 min" / "2 h 05" label for a duration in ms. */
+export function formatAge(ms: number): string {
+  if (Number.isNaN(ms) || ms < 0) return "";
+
+  const minutes = Math.floor(ms / 60_000);
+
+  if (minutes < 60) return `${minutes} min`;
+
+  const hours = Math.floor(minutes / 60);
+
+  return `${hours} h ${String(minutes % 60).padStart(2, "0")}`;
+}

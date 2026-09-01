@@ -95,5 +95,11 @@
         "en": "English",
         "fr": "Français",
         "ar": "العربية"
+    },
+    "focus": {
+        "show_all": "Afficher toutes les lignes"
+    },
+    "bus": {
+        "last_seen": "Vu il y a {{age}}"
     }
 }

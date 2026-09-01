@@ -3,12 +3,16 @@ import { useDevicePosition } from "../../hooks/use-device-position.ts";
 import { BusMarker } from "./BusMarker.tsx";
 import { useCallback } from "react";
 import { DeviceEvent, PositionEvent } from "../../types.ts";
-import { isPositionEvent } from "../../helpers.ts";
+import { busFreshness, busPositionAge, isPositionEvent } from "../../helpers.ts";
 import { useDevicePositionListener } from "../../hooks/use-device-position-listener.ts";
+import { useNow } from "../../hooks/use-now.ts";
+import { useFocusedDeviceIds } from "../../hooks/use-focused-device-ids.ts";
 
 export function AllDevicePositionMarkers() {
   const queryClient = useQueryClient();
   const [positions, devices] = useDevicePosition();
+  const now = useNow();
+  const focusedDeviceIds = useFocusedDeviceIds();
 
   const onPositionUpdate = useCallback(
     (e: MessageEvent<string>) => {
@@ -47,11 +51,21 @@ export function AllDevicePositionMarkers() {
 
     if (!position) return null;
 
+    // Traccar keeps serving the last known fix forever. A vehicle that has
+    // not reported for half an hour is not where this says it is, so it is
+    // not drawn at all rather than drawn as if it were live.
+    const freshness = busFreshness(device, position, now);
+
+    if (freshness === "offline") return null;
+
     return (
       <BusMarker
         key={device.id}
         device={device}
         position={position}
+        freshness={freshness}
+        age={busPositionAge(device, position, now)}
+        dimmed={!!focusedDeviceIds && !focusedDeviceIds.has(device.uniqueId)}
       />
     );
   });

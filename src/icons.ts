@@ -1,4 +1,5 @@
 import L from "leaflet";
+import { darkenColor } from "./helpers.ts";
 
 /**
  * Map marker icons.
@@ -23,40 +24,77 @@ export const busStopIcon = L.divIcon({
   popupAnchor: [0, -14],
 });
 
-/**
- * Bus stop sized by importance: stops served by more than one line act as
- * interchanges and carry more visual weight than ordinary stops, so the eye
- * has somewhere to land instead of meeting 80 identical markers.
- *
- * Icons are cached — there are only two variants, but ~83 markers re-render.
- */
-const stopIconCache = new Map<boolean, L.DivIcon>();
+/** Falls back to the brand ink when a line has no usable colour. */
+const STOP_FALLBACK = "#0c4a6e";
 
-export function busStopIconFor(lineCount: number): L.DivIcon {
-  const isInterchange = lineCount > 1;
-  const cached = stopIconCache.get(isInterchange);
+/** Colours arrive from the tenant API, so only accept a literal hex value. */
+function safeColor(color: string | undefined): string {
+  return color && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)
+    ? color
+    : STOP_FALLBACK;
+}
+
+/**
+ * Bus stops, coloured by the line they serve.
+ *
+ *   - ordinary stop -> a small disc in its line's colour, ringed in a darker
+ *     shade of the same colour and haloed in white. It reads as a bead on
+ *     that route rather than as a separate grey layer on top of the map.
+ *   - interchange (2+ lines) -> a white disc with a dark ring. Neutral on
+ *     purpose: it belongs to several lines, so it belongs to none of them.
+ *
+ * The rings are box-shadows, not borders, so they cost no layout size — the
+ * marker stays as small as its `iconSize` says while still reading clearly
+ * over both pale tiles and dark route lines.
+ *
+ * Icons are cached per colour; there are only a handful of lines.
+ */
+const stopIconCache = new Map<string, L.DivIcon>();
+
+export function busStopIconFor(lines: Array<{ color: string }>): L.DivIcon {
+  const isInterchange = lines.length > 1;
+  const color = safeColor(lines[0]?.color);
+  const key = isInterchange ? "interchange" : color;
+
+  const cached = stopIconCache.get(key);
   if (cached) return cached;
 
-  const size = isInterchange ? 15 : 11;
+  const size = isInterchange ? 11 : 8;
+  const style = isInterchange
+    ? ""
+    : ` style="--stop-color: ${color}; --stop-ring: ${darkenColor(color, 0.5)};"`;
+
   const icon = L.divIcon({
     className: "bus-stop-marker",
     html: `<div class="bus-stop-marker__dot${
       isInterchange ? " bus-stop-marker__dot--interchange" : ""
-    }"></div>`,
+    }"${style}></div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
-    popupAnchor: [0, -(size / 2) - 4],
+    popupAnchor: [0, -(size / 2) - 5],
   });
 
-  stopIconCache.set(isInterchange, icon);
+  stopIconCache.set(key, icon);
   return icon;
 }
 
-/** Live vehicle. `angle` is the Traccar course, applied as a CSS rotation. */
-export const busIcon = (angle: number) =>
+/**
+ * Below this zoom only interchanges are drawn. The map opens at z15, so the
+ * default view is unaffected; zooming out to see the whole network no longer
+ * buries it under every minor stop at once.
+ */
+export const MINOR_STOP_MIN_ZOOM = 15;
+
+/**
+ * Live vehicle. `angle` is the Traccar course, applied as a CSS rotation.
+ *
+ * A `stale` vehicle (no fix for a few minutes) is drawn grey and semi
+ * transparent so it is visibly a last known position rather than a live one.
+ */
+export const busIcon = (angle: number, stale: boolean = false) =>
   L.divIcon({
     className: "bus-icon",
-    html: `<div class="bus-icon-container">
+    html: `<div class="bus-icon-container${stale ? " bus-icon-container--stale" : ""}">
           <div class="bus-direction" style="--angle: ${angle}deg;">
             <svg width="37" height="46" viewBox="0 0 37 46" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <circle cx="18.5" cy="27.5" r="17.5" fill="white"/>

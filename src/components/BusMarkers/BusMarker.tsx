@@ -1,26 +1,42 @@
 import { Marker, Popup } from "react-leaflet";
+import { useTranslation } from "react-i18next";
 import { busIcon } from "../../icons.ts";
-import { capitalize } from "../../helpers.ts";
+import { BusFreshness, capitalize, formatAge } from "../../helpers.ts";
 
 type BusMarkerProps = {
   device: { name: string; category: string | null };
   position: { latitude: number; longitude: number; course: number };
+  /** How recent this vehicle's last fix is. */
+  freshness?: BusFreshness;
+  /** Age of that fix in ms, shown in the popup when the vehicle is stale. */
+  age?: number;
+  /** True when another line is focused and this vehicle is not on it. */
+  dimmed?: boolean;
 };
 
 /**
  * Presentational marker for a live vehicle. Shared by the "all buses" and
  * "line only" marker layers, which differ only in how they pick devices.
  */
-export function BusMarker({ device, position }: BusMarkerProps) {
+export function BusMarker({
+  device,
+  position,
+  freshness = "live",
+  age = NaN,
+  dimmed = false,
+}: BusMarkerProps) {
+  const { t } = useTranslation();
   const busCategory = capitalize(device?.category || "bus");
   const busName = device?.name ?? "Unknown";
+  const isStale = freshness === "stale";
 
   return (
     <Marker
       position={[position.latitude, position.longitude]}
-      icon={busIcon(position.course)}
+      icon={busIcon(position.course, isStale)}
       title={busName}
-      zIndexOffset={1000}
+      opacity={dimmed ? 0.25 : 1}
+      zIndexOffset={dimmed ? 400 : isStale ? 600 : 1000}
     >
       <Popup>
         <div className="bus-popup">
@@ -36,12 +52,19 @@ export function BusMarker({ device, position }: BusMarkerProps) {
             <path d="M12 2C8 2 4 2.5 4 6v9.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h2l2-2h4l2 2h2v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V6c0-3.5-4-4-8-4z" />
             <path
               d="M7.5 15c.83 0 1.5-.67 1.5-1.5S8.33 12 7.5 12 6 12.67 6 13.5 6.67 15 7.5 15zM16.5 15c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5-1.5.67-1.5 1.5.67 1.5 1.5 1.5zM18 6H6v5h12V6z"
-              fill="#0891b2"
+              fill="var(--surface)"
             />
           </svg>
-          <span>
-            {busCategory} - {busName}
-          </span>
+          <div className="bus-popup__text">
+            <span>
+              {busCategory} - {busName}
+            </span>
+            {isStale && (
+              <span className="bus-popup__stale">
+                {t("bus.last_seen", { age: formatAge(age) })}
+              </span>
+            )}
+          </div>
         </div>
       </Popup>
     </Marker>

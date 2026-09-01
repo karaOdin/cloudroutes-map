@@ -95,5 +95,11 @@
         "en": "English",
         "fr": "Français",
         "ar": "العربية"
+    },
+    "focus": {
+        "show_all": "إظهار كل الخطوط"
+    },
+    "bus": {
+        "last_seen": "آخر ظهور منذ {{age}}"
     }
 }

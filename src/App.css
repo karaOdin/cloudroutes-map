@@ -1658,29 +1658,33 @@
 }
 
 /* Static bus stops.
-   Ranked below live vehicles: an ordinary stop is a quiet dot, while an
-   interchange (served by 2+ lines) is larger and darker so the eye has
-   somewhere to land instead of meeting ~83 identical markers. */
+   Coloured by their line so a stop reads as a bead on that route, with a
+   darker ring of the same hue for definition and a white halo so it survives
+   both pale tiles and dark line colours. Rings are box-shadows, so the
+   marker's footprint stays exactly its iconSize. */
 .bus-stop-marker__dot {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: var(--white);
-  border: 2.5px solid var(--brand-500);
-  box-shadow: 0 1px 3px rgba(8, 47, 73, 0.3);
+  background: var(--stop-color, var(--brand-500));
+  box-shadow: 0 0 0 1.5px var(--stop-ring, var(--brand-900)),
+    0 0 0 3px rgba(255, 255, 255, 0.92), 0 1px 2px rgba(8, 47, 73, 0.25);
   transition: transform var(--dur) var(--ease-out),
     box-shadow var(--dur) var(--ease);
 }
 
+/* Interchange: neutral on purpose — it belongs to several lines at once. */
 .bus-stop-marker__dot--interchange {
-  border-width: 3.5px;
-  border-color: var(--brand-900);
-  box-shadow: 0 2px 5px rgba(8, 47, 73, 0.4);
+  background: var(--white);
+  box-shadow: 0 0 0 3px var(--brand-900), 0 1px 4px rgba(8, 47, 73, 0.35);
 }
 
 .bus-stop-marker:hover .bus-stop-marker__dot {
-  transform: scale(1.35);
-  box-shadow: 0 3px 10px rgba(8, 47, 73, 0.45);
+  transform: scale(1.45);
+}
+
+.bus-stop-marker:hover .bus-stop-marker__dot--interchange {
+  transform: scale(1.25);
 }
 
 /* Retained for the legacy busStopIcon export. */
@@ -3348,6 +3352,112 @@ body:has(.route-results-wrapper) .leaflet-popup {
 .map-controls-webview {
   /* Pushed down to clear the React Native search bar above the WebView. */
   top: calc(140px + var(--safe-top)) !important;
+}
+
+/* Focus mode
+   Tapping a line concentrates the map on it; everything else drops back
+   rather than disappearing, so the network context is still readable. The
+   banner is the way out — without it focus is a state you can enter by
+   accident and not know how to leave. */
+.focus-banner {
+  position: absolute;
+  bottom: calc(24px + var(--safe-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-map-controls);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 32px);
+  /* Logical padding so the close button keeps its tighter side in RTL. */
+  padding-block: 8px;
+  padding-inline: 14px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  animation: focus-banner-in var(--dur) var(--ease-out);
+}
+
+.focus-banner__dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--focus-color, var(--brand-500));
+  box-shadow: 0 0 0 1.5px rgba(8, 47, 73, 0.35);
+}
+
+.focus-banner__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.focus-banner__clear {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.focus-banner__clear:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.focus-banner__clear:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-brand);
+}
+
+@keyframes focus-banner-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* Stale vehicles.
+   A bus whose last fix is minutes old is drawn desaturated so it reads as a
+   last known position; past BUS_OFFLINE_AFTER_MS it is not drawn at all. */
+.bus-icon-container--stale {
+  color: var(--gray-400);
+  opacity: 0.75;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.18));
+}
+
+.bus-popup__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bus-popup__stale {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--orange-ink);
 }
 
 /* Line label icons — the "19F"-style badges along a route */
