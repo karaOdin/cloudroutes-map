@@ -1637,7 +1637,9 @@
      box centre. Rotating about the box centre swung the disc on a 4.5px
      radius, so a bus appeared to shift position as its heading changed. */
   transform-origin: 18.5px 27.5px;
-  transition: transform 600ms var(--ease);
+  /* Turns over the same window as the slide, so the two read as one motion
+     rather than a snap of the heading followed by a glide. */
+  transition: transform var(--move-duration, 0ms) linear;
 }
 
 /* Inline SVGs sit on a text baseline, which adds descender space below the
@@ -1646,11 +1648,16 @@
   display: block;
 }
 
-/* Vehicles slide between fixes instead of teleporting. Linear rather than
-   eased: positions arrive at an irregular cadence, and an ease-in-out on each
-   hop reads as hesitation rather than as movement. */
+/* Vehicles slide between fixes instead of teleporting.
+   The duration is set per update by BusMarker from the interval the fixes are
+   actually arriving at, so the vehicle is still moving when the next one
+   lands. It defaults to 0ms so the first placement does not fly in from the
+   corner. Linear rather than eased: an ease-in-out on every hop reads as
+   hesitation rather than as movement. */
 .bus-icon {
-  transition: transform 900ms linear;
+  transition-property: transform;
+  transition-timing-function: linear;
+  transition-duration: var(--move-duration, 0ms);
   will-change: transform;
 }
 
@@ -1675,6 +1682,43 @@
   /* Drives the vehicle glyph, its ring and the heading arrow. */
   color: var(--bus-marker);
   filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.3));
+}
+
+/* "Waiting for the next fix" ring.
+   Absolutely positioned on the vehicle disc so it cannot disturb the flex
+   layout the icon geometry depends on, and non-interactive so it never
+   intercepts a tap meant for the bus. Hidden until BusMarker decides a fix is
+   overdue; it conveys that the reading is ageing, not where the bus has got
+   to. Covered by the global prefers-reduced-motion block. */
+.bus-pulse {
+  position: absolute;
+  left: 18.5px;
+  top: 27.5px;
+  width: 35px;
+  height: 35px;
+  /* Physical, not logical: the marker is a map glyph, and margin-inline-start
+     would flip it off the vehicle when the app is in Arabic. */
+  margin-left: -17.5px;
+  margin-top: -17.5px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bus-icon.is-awaiting-fix .bus-pulse {
+  animation: bus-awaiting-fix 2.4s var(--ease-out) infinite;
+}
+
+@keyframes bus-awaiting-fix {
+  from {
+    opacity: 0.45;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.2);
+  }
 }
 
 /* Static bus stops.

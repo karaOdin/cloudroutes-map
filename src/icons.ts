@@ -117,6 +117,7 @@ export function busIcon(stale: boolean = false): L.DivIcon {
   const icon = L.divIcon({
     className: "bus-icon",
     html: `<div class="bus-icon-container${stale ? " bus-icon-container--stale" : ""}">
+          <div class="bus-pulse" aria-hidden="true"></div>
           <div class="bus-direction">
             <svg width="37" height="46" viewBox="0 0 37 46" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <circle cx="18.5" cy="27.5" r="17.5" fill="white"/>
