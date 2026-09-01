@@ -1,50 +1,18 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useDevicePosition } from "../../hooks/use-device-position.ts";
 import { BusMarker } from "./BusMarker.tsx";
-import { useCallback } from "react";
-import { DeviceEvent, PositionEvent } from "../../types.ts";
-import { busFreshness, busPositionAge, isPositionEvent } from "../../helpers.ts";
-import { useDevicePositionListener } from "../../hooks/use-device-position-listener.ts";
+import { busFreshness, busPositionAge } from "../../helpers.ts";
+import { useLivePositions } from "../../hooks/use-live-positions.ts";
 import { useNow } from "../../hooks/use-now.ts";
 import { useFocusedDeviceIds } from "../../hooks/use-focused-device-ids.ts";
 import { useDevicePaths } from "../../hooks/use-device-paths.ts";
 
 export function AllDevicePositionMarkers() {
-  const queryClient = useQueryClient();
   const [positions, devices] = useDevicePosition();
   const now = useNow();
   const focusedDeviceIds = useFocusedDeviceIds();
   const devicePaths = useDevicePaths();
 
-  const onPositionUpdate = useCallback(
-    (e: MessageEvent<string>) => {
-      const event = JSON.parse(e.data) as PositionEvent | DeviceEvent;
-
-      if (isPositionEvent(event)) {
-        const updated = positions.data?.map((p) => {
-          const update = event.positions.find(
-            (pos) => pos.deviceId === p.deviceId
-          );
-
-          return update
-            ? {
-                ...p,
-                latitude: update.latitude,
-                longitude: update.longitude,
-                course: update.course,
-              }
-            : p;
-        });
-
-        if (updated) {
-          queryClient.setQueryData(["positions"], updated);
-        }
-      }
-    },
-    [queryClient, positions.data]
-  );
-
-  useDevicePositionListener(onPositionUpdate);
+  useLivePositions();
 
   if (!positions?.data || !devices?.data) return <></>;
 

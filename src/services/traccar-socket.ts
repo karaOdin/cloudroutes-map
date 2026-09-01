@@ -20,6 +20,18 @@ type StatusListener = (connected: boolean) => void;
 const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
 
+/**
+ * A socket can sit in readyState OPEN and deliver nothing — the server stops
+ * pushing, or a middlebox holds a dead connection open. Nothing about the
+ * socket itself reveals that, so silence has to be timed.
+ *
+ * Measured against the live feed, messages arrive a median of 120ms apart and
+ * the largest observed gap was 2.4s, so a minute of silence is roughly 25x
+ * anything normal and is safe to treat as a dead feed.
+ */
+const SILENCE_TIMEOUT_MS = 60_000;
+const SILENCE_CHECK_MS = 15_000;
+
 const messageListeners = new Set<MessageListener>();
 const statusListeners = new Set<StatusListener>();
 
@@ -27,6 +39,7 @@ let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let attempts = 0;
 let connected = false;
+let lastMessageAt = 0;
 
 function setConnected(next: boolean) {
   if (connected === next) return;
@@ -68,10 +81,16 @@ function connect() {
 
   socket.addEventListener("open", () => {
     attempts = 0;
+    lastMessageAt = Date.now();
     setConnected(true);
   });
 
   socket.addEventListener("message", (event) => {
+    lastMessageAt = Date.now();
+
+    // An open socket that had gone quiet and has now spoken is live again.
+    if (!connected) setConnected(true);
+
     messageListeners.forEach((listener) =>
       listener(event as MessageEvent<string>)
     );
@@ -91,6 +110,24 @@ function connect() {
 function reconnectImmediately() {
   attempts = 0;
   connect();
+}
+
+/**
+ * Treat a silent socket as disconnected. That both starts the HTTP fallback —
+ * consumers poll while this reports disconnected — and tears the socket down
+ * so the normal reconnect path can replace it.
+ */
+function checkForSilence() {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+  if (Date.now() - lastMessageAt < SILENCE_TIMEOUT_MS) return;
+
+  setConnected(false);
+  socket.close();
+}
+
+if (typeof setInterval !== "undefined") {
+  setInterval(checkForSilence, SILENCE_CHECK_MS);
 }
 
 if (typeof document !== "undefined") {
@@ -121,6 +158,7 @@ export function subscribeToSocketStatus(listener: StatusListener) {
   };
 }
 
+/** True only while the socket is open and has spoken recently. */
 export function isSocketConnected(): boolean {
   return connected;
 }

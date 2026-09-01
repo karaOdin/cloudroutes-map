@@ -21,12 +21,15 @@ async function getDevices() {
 }
 
 /**
- * Poll interval used only while the position socket is down. With the socket
- * up this stays off and the feed does the work; without it, `refetchOnWindow
- * Focus` alone was the only thing that ever refreshed positions, which in a
- * WebView can be a very long time.
+ * Poll interval used only while the position socket is down or has gone
+ * silent. With the feed healthy this stays off entirely and adds no load;
+ * without it, `refetchOnWindowFocus` was the only thing that ever refreshed
+ * positions, which in a WebView can be a very long time.
+ *
+ * Set just above the measured 9.8s median reporting interval, so falling back
+ * costs at most one skipped report rather than a visibly frozen map.
  */
-const FALLBACK_POLL_MS = 20_000;
+const FALLBACK_POLL_MS = 12_000;
 
 export function useDevicePosition() {
   const socketConnected = useTraccarSocketStatus();
