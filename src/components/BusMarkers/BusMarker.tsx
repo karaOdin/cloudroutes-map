@@ -1,9 +1,15 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { Marker, Popup } from "react-leaflet";
-import { latLng, Marker as LeafletMarker } from "leaflet";
+import { LatLng, latLng, Marker as LeafletMarker } from "leaflet";
 import { useTranslation } from "react-i18next";
 import { busIcon } from "../../icons.ts";
 import { BusFreshness, capitalize, formatAge } from "../../helpers.ts";
+import {
+  MeasuredPath,
+  measure,
+  pathBetween,
+  pointAt,
+} from "../../services/route-path.ts";
 
 type BusMarkerProps = {
   device: { name: string; category: string | null };
@@ -14,7 +20,21 @@ type BusMarkerProps = {
   age?: number;
   /** True when another line is focused and this vehicle is not on it. */
   dimmed?: boolean;
+  /** Waypoints of the line this vehicle runs, when it has one. */
+  path?: LatLng[];
 };
+
+/**
+ * How the vehicle gets from its last fix to this one.
+ *
+ * `walk` follows the route line and is driven frame by frame; `slide` is the
+ * straight-line CSS transition used when the line cannot account for the
+ * movement; `snap` is for a jump that should not be animated at all.
+ */
+type MovePlan =
+  | { kind: "snap" }
+  | { kind: "slide" }
+  | { kind: "walk"; route: MeasuredPath; duration: number };
 
 /**
  * Presentational marker for a live vehicle. Shared by the "all buses" and
@@ -26,6 +46,7 @@ export function BusMarker({
   freshness = "live",
   age = NaN,
   dimmed = false,
+  path,
 }: BusMarkerProps) {
   const { t } = useTranslation();
   const { latitude, longitude, course } = position;
@@ -34,18 +55,42 @@ export function BusMarker({
   const lastGap = useRef<number | null>(null);
   const awaitingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heading = useRef<number | null>(null);
+  const plan = useRef<MovePlan | null>(null);
   const busCategory = capitalize(device?.category || "bus");
   const busName = device?.name ?? "Unknown";
   const isStale = freshness === "stale";
 
-  // Match the slide to the interval the fixes actually arrive at.
+  /**
+   * Point the vehicle at a bearing.
+   *
+   * The angle accumulates rather than resetting into 0-360, because CSS
+   * interpolates rotation numerically: going 350deg -> 10deg would spin the
+   * bus 340deg backwards instead of 20deg forwards. Applied to the live
+   * element rather than baked into the icon, since replacing the icon
+   * replaces the DOM node and would interrupt whatever is in flight; custom
+   * properties inherit, so setting it on the root reaches the rotating div.
+   */
+  const turnTo = useCallback((bearing: number) => {
+    const element = markerRef.current?.getElement();
+
+    if (!element) return;
+
+    const previous = heading.current;
+    const next =
+      previous === null ? bearing : previous + shortestTurn(previous, bearing);
+
+    heading.current = next;
+    element.style.setProperty("--angle", `${next}deg`);
+  }, []);
+
+  // Decide how this hop should be travelled.
   //
-  // A fixed duration cannot work here: Traccar reports every several seconds
-  // at best, so a short transition darts across the gap and then sits still
-  // until the next one, which reads as jumping. Timing each hop to roughly
-  // how long the previous one took keeps the vehicle in continuous motion.
+  // A fixed duration cannot work against this feed: Traccar reports every
+  // several seconds at best, so a short transition darts across the gap and
+  // then sits still until the next one, which reads as jumping. Timing each
+  // hop to roughly how long the previous one took keeps the vehicle moving.
   //
-  // useLayoutEffect on purpose — this must set the duration *before*
+  // useLayoutEffect on purpose — the CSS duration must be set *before*
   // react-leaflet's own effect calls setLatLng, or it would arrive one hop
   // late. Parent layout effects run before child passive effects.
   useLayoutEffect(() => {
@@ -56,37 +101,92 @@ export function BusMarker({
     lastGap.current = previous ? at - previous.at : null;
     lastFix.current = { at, lat: latitude, lng: longitude };
 
+    const duration = slideDuration(previous, latitude, longitude, at);
+    const route =
+      previous && duration > 0 && path
+        ? pathBetween(
+            path,
+            latLng(previous.lat, previous.lng),
+            latLng(latitude, longitude),
+            {
+              maxOffRoute: MAX_OFF_ROUTE_M,
+              maxDetourRatio: MAX_DETOUR_RATIO,
+            }
+          )
+        : null;
+
+    const next: MovePlan = route
+      ? { kind: "walk", route: measure(route), duration }
+      : { kind: duration > 0 ? "slide" : "snap" };
+
+    plan.current = next;
+
     if (!element) return;
 
-    element.style.setProperty(
-      "--move-duration",
-      `${slideDuration(previous, latitude, longitude, at)}ms`
-    );
-  }, [latitude, longitude]);
+    // A walk drives every frame itself, so the CSS transition has to be off
+    // or it would lag a step behind each frame it is given.
+    const css = next.kind === "walk" ? 0 : duration;
 
-  // Heading is applied to the live element rather than baked into the icon.
-  // Custom properties inherit, so setting it on the marker root reaches the
-  // rotating inner div without replacing any DOM — which is what lets the
-  // position transition and the turn run instead of snapping.
-  //
-  // The angle accumulates rather than resetting into 0-360, because CSS
-  // interpolates rotation numerically: going 350deg -> 10deg would spin the
-  // bus 340deg backwards instead of 20deg forwards.
-  // `isStale` is a dependency because changing it does swap the icon element.
+    element.style.setProperty("--move-duration", `${css}ms`);
+    element.style.setProperty("--turn-duration", `${css}ms`);
+  }, [latitude, longitude, path]);
+
+  // Heading, when the vehicle is not being walked along its route. During a
+  // walk it comes from the road being travelled instead, which is a better
+  // reading than a course sampled once at the last fix.
+  // `isStale` is a dependency because changing it does swap the icon element,
+  // which loses the property and needs it restored.
   useEffect(() => {
-    const element = markerRef.current?.getElement();
+    if (plan.current?.kind === "walk" && heading.current !== null) {
+      markerRef.current
+        ?.getElement()
+        ?.style.setProperty("--angle", `${heading.current}deg`);
 
-    if (!element) return;
+      return;
+    }
 
-    const previous = heading.current;
-    const next =
-      previous === null
-        ? course
-        : previous + shortestTurn(previous, course);
+    turnTo(course);
+  }, [course, isStale, turnTo]);
 
-    heading.current = next;
-    element.style.setProperty("--angle", `${next}deg`);
-  }, [course, isStale]);
+  // Walk the vehicle along its own route line.
+  //
+  // Interpolating straight between two fixes cuts across blocks and through
+  // buildings wherever the route bends. Both endpoints are positions the
+  // vehicle actually reported and the line between them is the road it runs,
+  // so following the polyline is not a guess — it is a closer reconstruction
+  // of the same known journey. `pathBetween` returns null whenever the line
+  // cannot honestly account for the movement, and then this does not run.
+  useEffect(() => {
+    const marker = markerRef.current;
+    const current = plan.current;
+
+    if (!marker || current?.kind !== "walk") return;
+
+    const { route, duration } = current;
+    const startedAt = performance.now();
+    let frame = 0;
+
+    const step = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const { point, bearing } = pointAt(route, route.total * progress);
+
+      marker.setLatLng(point);
+      turnTo(bearing);
+
+      if (progress < 1) frame = requestAnimationFrame(step);
+    };
+
+    // react-leaflet has already placed the marker at the destination, so put
+    // it back at the start of the stretch before the first frame is drawn.
+    const start = pointAt(route, 0);
+
+    marker.setLatLng(start.point);
+    turnTo(start.bearing);
+
+    frame = requestAnimationFrame(step);
+
+    return () => cancelAnimationFrame(frame);
+  }, [latitude, longitude, path, turnTo]);
 
   // "Waiting for the next fix", shown only once one is actually overdue.
   //
@@ -168,6 +268,20 @@ function shortestTurn(from: number, to: number): number {
 
 /** How far past the expected interval a fix is before the ring appears. */
 const AWAITING_GRACE = 1.5;
+
+/**
+ * How far off its line a fix may be and still be treated as having travelled
+ * along it. Covers GPS error, road width and waypoint simplification; beyond
+ * it the vehicle is on diversion, deadheading, or assigned to a line it is not
+ * currently running, and claiming it followed the route would be fiction.
+ */
+const MAX_OFF_ROUTE_M = 60;
+/**
+ * Reject a route this many times longer than the direct line. Usually means
+ * the two fixes snapped to opposite arms of a loop, which would send the
+ * vehicle the long way round the network.
+ */
+const MAX_DETOUR_RATIO = 3;
 
 /** Slides shorter than this look like a twitch. */
 const MIN_SLIDE_MS = 900;

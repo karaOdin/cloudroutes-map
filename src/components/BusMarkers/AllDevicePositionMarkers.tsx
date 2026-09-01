@@ -7,12 +7,14 @@ import { busFreshness, busPositionAge, isPositionEvent } from "../../helpers.ts"
 import { useDevicePositionListener } from "../../hooks/use-device-position-listener.ts";
 import { useNow } from "../../hooks/use-now.ts";
 import { useFocusedDeviceIds } from "../../hooks/use-focused-device-ids.ts";
+import { useDevicePaths } from "../../hooks/use-device-paths.ts";
 
 export function AllDevicePositionMarkers() {
   const queryClient = useQueryClient();
   const [positions, devices] = useDevicePosition();
   const now = useNow();
   const focusedDeviceIds = useFocusedDeviceIds();
+  const devicePaths = useDevicePaths();
 
   const onPositionUpdate = useCallback(
     (e: MessageEvent<string>) => {
@@ -66,6 +68,7 @@ export function AllDevicePositionMarkers() {
         freshness={freshness}
         age={busPositionAge(device, position, now)}
         dimmed={!!focusedDeviceIds && !focusedDeviceIds.has(device.uniqueId)}
+        path={devicePaths.get(device.uniqueId)}
       />
     );
   });

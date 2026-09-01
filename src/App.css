@@ -1638,8 +1638,10 @@
      radius, so a bus appeared to shift position as its heading changed. */
   transform-origin: 18.5px 27.5px;
   /* Turns over the same window as the slide, so the two read as one motion
-     rather than a snap of the heading followed by a glide. */
-  transition: transform var(--move-duration, 0ms) linear;
+     rather than a snap of the heading followed by a glide. Zeroed while the
+     vehicle is being walked along its route, where the heading is recomputed
+     from the road on every frame and needs no interpolation of its own. */
+  transition: transform var(--turn-duration, 0ms) linear;
 }
 
 /* Inline SVGs sit on a text baseline, which adds descender space below the

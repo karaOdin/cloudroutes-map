@@ -7,6 +7,7 @@ import { busFreshness, busPositionAge, isPositionEvent } from "../../helpers.ts"
 import { useDevicePositionListener } from "../../hooks/use-device-position-listener.ts";
 import { useNow } from "../../hooks/use-now.ts";
 import { useFocusedDeviceIds } from "../../hooks/use-focused-device-ids.ts";
+import { useDevicePaths } from "../../hooks/use-device-paths.ts";
 import { useLines } from "@cloudroutes/query/lines";
 import { Line } from "@cloudroutes/core/lines";
 import { useFilterStore } from "../../hooks/use-filter-store.ts";
@@ -18,6 +19,7 @@ export function LineOnlyDevicePositionMarkers() {
   const [positions, devices] = useDevicePosition();
   const now = useNow();
   const focusedDeviceIds = useFocusedDeviceIds();
+  const devicePaths = useDevicePaths();
   const { data: lines } = useLines();
 
   const onPositionUpdate = useCallback(
@@ -74,6 +76,7 @@ export function LineOnlyDevicePositionMarkers() {
         freshness={freshness}
         age={busPositionAge(device, position, now)}
         dimmed={!!focusedDeviceIds && !focusedDeviceIds.has(device.uniqueId)}
+        path={devicePaths.get(device.uniqueId)}
       />
     );
   });
