@@ -6,6 +6,8 @@ import { useLivePositions } from "../../hooks/use-live-positions.ts";
 import { useNow } from "../../hooks/use-now.ts";
 import { useFocusedDeviceIds } from "../../hooks/use-focused-device-ids.ts";
 import { useDevicePaths } from "../../hooks/use-device-paths.ts";
+import { useMapZoom } from "../../hooks/use-map-zoom.ts";
+import { labelledVehicles } from "./bus-labels.ts";
 import { useLines } from "@cloudroutes/query/lines";
 import { Line } from "@cloudroutes/core/lines";
 import { useFilterStore } from "../../hooks/use-filter-store.ts";
@@ -17,6 +19,7 @@ export function LineOnlyDevicePositionMarkers() {
   const now = useNow();
   const focusedDeviceIds = useFocusedDeviceIds();
   const devicePaths = useDevicePaths();
+  const zoom = useMapZoom();
   const { data: lines } = useLines();
 
   useLivePositions();
@@ -25,30 +28,45 @@ export function LineOnlyDevicePositionMarkers() {
 
   const filteredDevices = filteredDevicesData(devices.data, lines, filters);
 
-  return filteredDevices.map((device) => {
+  // See AllDevicePositionMarkers: labels are allocated against what is really
+  // on screen, so resolve the drawn set first.
+  const drawn = [];
+
+  for (const device of filteredDevices) {
     const position = positions.data.find((p) => p.deviceId === device.id);
 
-    if (!position) return null;
+    if (!position) continue;
 
-    // See AllDevicePositionMarkers: a fix this old is misleading, not useful.
+    // A fix this old is misleading, not useful.
     const freshness = busFreshness(device, position, now);
 
-    if (freshness === "offline") return null;
+    if (freshness === "offline") continue;
 
-    return (
-      <BusMarker
-        // Keyed by device only. Including the coordinates remounted the
-        // marker on every update, so it could never animate between them.
-        key={device.id}
-        device={device}
-        position={position}
-        freshness={freshness}
-        age={busPositionAge(device, position, now)}
-        dimmed={!!focusedDeviceIds && !focusedDeviceIds.has(device.uniqueId)}
-        path={devicePaths.get(device.uniqueId)}
-      />
-    );
-  });
+    drawn.push({ device, position, freshness });
+  }
+
+  const labelled = labelledVehicles(
+    drawn.map(({ device, position }) => ({
+      id: device.id,
+      lat: position.latitude,
+      lng: position.longitude,
+      focused: !!focusedDeviceIds && focusedDeviceIds.has(device.uniqueId),
+    })),
+    zoom
+  );
+
+  return drawn.map(({ device, position, freshness }) => (
+    <BusMarker
+      key={device.id}
+      device={device}
+      position={position}
+      freshness={freshness}
+      age={busPositionAge(device, position, now)}
+      dimmed={!!focusedDeviceIds && !focusedDeviceIds.has(device.uniqueId)}
+      path={devicePaths.get(device.uniqueId)}
+      labelled={labelled.has(device.id)}
+    />
+  ));
 }
 
 function filteredDevicesData(

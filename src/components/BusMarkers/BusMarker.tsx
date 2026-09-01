@@ -4,6 +4,7 @@ import { LatLng, latLng, Marker as LeafletMarker } from "leaflet";
 import { useTranslation } from "react-i18next";
 import { busIcon } from "../../icons.ts";
 import { BusFreshness, capitalize, formatAge } from "../../helpers.ts";
+import { tidyVehicleName } from "./bus-labels.ts";
 import {
   MeasuredPath,
   measure,
@@ -22,6 +23,8 @@ type BusMarkerProps = {
   dimmed?: boolean;
   /** Waypoints of the line this vehicle runs, when it has one. */
   path?: LatLng[];
+  /** True when this vehicle has been allocated room to show its name. */
+  labelled?: boolean;
 };
 
 /**
@@ -47,6 +50,7 @@ export function BusMarker({
   age = NaN,
   dimmed = false,
   path,
+  labelled = false,
 }: BusMarkerProps) {
   const { t } = useTranslation();
   const { latitude, longitude, course } = position;
@@ -57,7 +61,7 @@ export function BusMarker({
   const heading = useRef<number | null>(null);
   const plan = useRef<MovePlan | null>(null);
   const busCategory = capitalize(device?.category || "bus");
-  const busName = device?.name ?? "Unknown";
+  const busName = tidyVehicleName(device?.name ?? "Unknown");
   const isStale = freshness === "stale";
 
   /**
@@ -199,6 +203,19 @@ export function BusMarker({
 
     return () => cancelAnimationFrame(frame);
   }, [latitude, longitude, path, turnTo]);
+
+  // The name, when the layer has decided there is room for it. Written as a
+  // custom property that CSS `content` reads, so the icon markup stays shared
+  // and cached across every vehicle and nothing needs re-rendering to show or
+  // hide a label.
+  useEffect(() => {
+    const element = markerRef.current?.getElement();
+
+    if (!element) return;
+
+    element.style.setProperty("--bus-label", JSON.stringify(busName));
+    element.classList.toggle("is-labelled", labelled && !dimmed);
+  }, [busName, labelled, dimmed, isStale]);
 
   // "Waiting for the next fix", shown only once one is actually overdue.
   //

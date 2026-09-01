@@ -1723,6 +1723,49 @@
   }
 }
 
+/* Vehicle name.
+   Absolutely positioned below the disc so it cannot disturb the flex layout
+   the icon geometry depends on, and non-interactive so it never intercepts a
+   tap. Hidden unless the layer has allocated room for it — see bus-labels.ts.
+   The text comes from a custom property rather than the markup, which keeps
+   one cached icon shared by every vehicle. */
+.bus-label {
+  position: absolute;
+  top: 46px;
+  left: 18.5px;
+  transform: translateX(-50%);
+  display: none;
+  max-width: 84px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(8, 47, 73, 0.25);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}
+
+.bus-icon.is-labelled .bus-label {
+  display: block;
+}
+
+.bus-label::after {
+  content: var(--bus-label, "");
+}
+
+/* A stale vehicle's name should recede with the rest of it. */
+.bus-icon-container--stale .bus-label {
+  opacity: 0.7;
+  font-weight: 600;
+}
+
 /* Static bus stops.
    Coloured by their line so a stop reads as a bead on that route, with a
    darker ring of the same hue for definition and a white halo so it survives

@@ -97,6 +97,11 @@ const BUS_DISC_CY = 27.5;
 /**
  * Live vehicle.
  *
+ * Neither the heading nor the vehicle name is baked in here — both would
+ * defeat the cache, and the name would need escaping. The label's text comes
+ * from a `--bus-label` custom property read by a CSS `content`, so the markup
+ * stays identical for every vehicle.
+ *
  * Heading is deliberately NOT baked in here. Returning a fresh icon per course
  * made react-leaflet call `setIcon()` on every update, which replaces the
  * marker's DOM element — killing any in-flight CSS transition and making the
@@ -118,6 +123,7 @@ export function busIcon(stale: boolean = false): L.DivIcon {
     className: "bus-icon",
     html: `<div class="bus-icon-container${stale ? " bus-icon-container--stale" : ""}">
           <div class="bus-pulse" aria-hidden="true"></div>
+          <div class="bus-label" aria-hidden="true"></div>
           <div class="bus-direction">
             <svg width="37" height="46" viewBox="0 0 37 46" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <circle cx="18.5" cy="27.5" r="17.5" fill="white"/>
