@@ -1633,7 +1633,17 @@
 .bus-direction {
   position: relative;
   transform: rotate(var(--angle, 0deg));
+  /* Pivot on the vehicle disc (18.5, 27.5 in the 37x46 artwork), not on the
+     box centre. Rotating about the box centre swung the disc on a 4.5px
+     radius, so a bus appeared to shift position as its heading changed. */
+  transform-origin: 18.5px 27.5px;
   transition: transform 600ms var(--ease);
+}
+
+/* Inline SVGs sit on a text baseline, which adds descender space below the
+   graphic and would make the box taller than the 46px the anchor assumes. */
+.bus-direction > svg {
+  display: block;
 }
 
 .bus-icon {

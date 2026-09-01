@@ -86,6 +86,15 @@ export function busStopIconFor(lines: Array<{ color: string }>): L.DivIcon {
 export const MINOR_STOP_MIN_ZOOM = 15;
 
 /**
+ * Bus icon geometry, taken from the SVG below: a 37x46 canvas whose vehicle
+ * disc is centred at (18.5, 27.5) with the heading arrow above it.
+ */
+const BUS_ICON_W = 37;
+const BUS_ICON_H = 46;
+const BUS_DISC_CX = 18.5;
+const BUS_DISC_CY = 27.5;
+
+/**
  * Live vehicle. `angle` is the Traccar course, applied as a CSS rotation.
  *
  * A `stale` vehicle (no fix for a few minutes) is drawn grey and semi
@@ -106,10 +115,16 @@ export const busIcon = (angle: number, stale: boolean = false) =>
           </div>
          </div>
       `,
-    iconSize: new L.Point(37, 46),
-    iconAnchor: [37 / 2, 46 * 1.2],
-    // Clears the top of the icon so the popup no longer covers the vehicle.
-    popupAnchor: [0, -52],
+    iconSize: new L.Point(BUS_ICON_W, BUS_ICON_H),
+    // The vehicle's coordinate is the centre of the disc, not a point below
+    // the icon. The previous anchor of [w/2, h * 1.2] placed the coordinate
+    // 27.7px *under* the artwork, which drew every bus that many pixels north
+    // of where it actually was — ~107 m at the default zoom 15, shrinking as
+    // you zoom in, which is why the buses appeared to sit on houses and then
+    // drift back towards the road.
+    iconAnchor: [BUS_DISC_CX, BUS_DISC_CY],
+    // Clears the top of the artwork so the popup does not cover the vehicle.
+    popupAnchor: [0, -(BUS_DISC_CY + 6)],
   });
 
 /** The user's own position, when the host app supplies one. */
