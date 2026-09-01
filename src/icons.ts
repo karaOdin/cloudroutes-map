@@ -95,16 +95,29 @@ const BUS_DISC_CX = 18.5;
 const BUS_DISC_CY = 27.5;
 
 /**
- * Live vehicle. `angle` is the Traccar course, applied as a CSS rotation.
+ * Live vehicle.
+ *
+ * Heading is deliberately NOT baked in here. Returning a fresh icon per course
+ * made react-leaflet call `setIcon()` on every update, which replaces the
+ * marker's DOM element — killing any in-flight CSS transition and making the
+ * vehicle teleport. The icon is now cached and stationary, and BusMarker sets
+ * the `--angle` custom property on the live element instead, so both the slide
+ * and the turn animate.
  *
  * A `stale` vehicle (no fix for a few minutes) is drawn grey and semi
  * transparent so it is visibly a last known position rather than a live one.
  */
-export const busIcon = (angle: number, stale: boolean = false) =>
-  L.divIcon({
+const busIconCache = new Map<boolean, L.DivIcon>();
+
+export function busIcon(stale: boolean = false): L.DivIcon {
+  const cached = busIconCache.get(stale);
+
+  if (cached) return cached;
+
+  const icon = L.divIcon({
     className: "bus-icon",
     html: `<div class="bus-icon-container${stale ? " bus-icon-container--stale" : ""}">
-          <div class="bus-direction" style="--angle: ${angle}deg;">
+          <div class="bus-direction">
             <svg width="37" height="46" viewBox="0 0 37 46" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <circle cx="18.5" cy="27.5" r="17.5" fill="white"/>
               <circle cx="18.5" cy="27.5" r="15.5" fill="white" stroke="currentColor" stroke-width="2"/>
@@ -126,6 +139,11 @@ export const busIcon = (angle: number, stale: boolean = false) =>
     // Clears the top of the artwork so the popup does not cover the vehicle.
     popupAnchor: [0, -(BUS_DISC_CY + 6)],
   });
+
+  busIconCache.set(stale, icon);
+
+  return icon;
+}
 
 /** The user's own position, when the host app supplies one. */
 export const userIcon = () => {

@@ -1,4 +1,6 @@
+import { useEffect, useRef } from "react";
 import { Marker, Popup } from "react-leaflet";
+import { Marker as LeafletMarker } from "leaflet";
 import { useTranslation } from "react-i18next";
 import { busIcon } from "../../icons.ts";
 import { BusFreshness, capitalize, formatAge } from "../../helpers.ts";
@@ -26,14 +28,27 @@ export function BusMarker({
   dimmed = false,
 }: BusMarkerProps) {
   const { t } = useTranslation();
+  const markerRef = useRef<LeafletMarker>(null);
   const busCategory = capitalize(device?.category || "bus");
   const busName = device?.name ?? "Unknown";
   const isStale = freshness === "stale";
 
+  // Heading is applied to the live element rather than baked into the icon.
+  // Custom properties inherit, so setting it on the marker root reaches the
+  // rotating inner div without replacing any DOM — which is what lets the
+  // position transition and the turn run instead of snapping.
+  // `isStale` is a dependency because changing it does swap the icon element.
+  useEffect(() => {
+    markerRef.current
+      ?.getElement()
+      ?.style.setProperty("--angle", `${position.course}deg`);
+  }, [position.course, isStale]);
+
   return (
     <Marker
+      ref={markerRef}
       position={[position.latitude, position.longitude]}
-      icon={busIcon(position.course, isStale)}
+      icon={busIcon(isStale)}
       title={busName}
       opacity={dimmed ? 0.25 : 1}
       zIndexOffset={dimmed ? 400 : isStale ? 600 : 1000}

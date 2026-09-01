@@ -20,6 +20,7 @@ import {
   FocusBanner,
   FocusController,
 } from "./components/FocusLayer.tsx";
+import { MarkerMotionGuard } from "./components/MarkerMotionGuard.tsx";
 import Modal from "react-modal";
 import { useEffect, useRef, useState } from "react";
 import { Filters } from "./components/Filters.tsx";
@@ -690,6 +691,7 @@ function App() {
     >
       <TileLayer url={leafletProvider.url} />
       <FocusController />
+      <MarkerMotionGuard />
       <DevicePositionMarkers />
       {/* Regular map layers - show when NO route */}
       {!routeData && (

@@ -66,7 +66,9 @@ export function LineOnlyDevicePositionMarkers() {
 
     return (
       <BusMarker
-        key={device.id + "_" + position.latitude + "_" + position.longitude}
+        // Keyed by device only. Including the coordinates remounted the
+        // marker on every update, so it could never animate between them.
+        key={device.id}
         device={device}
         position={position}
         freshness={freshness}

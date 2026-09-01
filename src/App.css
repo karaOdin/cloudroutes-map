@@ -1646,8 +1646,18 @@
   display: block;
 }
 
+/* Vehicles slide between fixes instead of teleporting. Linear rather than
+   eased: positions arrive at an irregular cadence, and an ease-in-out on each
+   hop reads as hesitation rather than as movement. */
 .bus-icon {
-  transition: transform 600ms var(--ease);
+  transition: transform 900ms linear;
+  will-change: transform;
+}
+
+/* See MarkerMotionGuard — during a zoom every marker is repositioned at once,
+   and transitioning that makes the fleet drift into place after the pinch. */
+.map-zooming .bus-icon {
+  transition: none;
 }
 
 .custom-bus-stop-icon,
