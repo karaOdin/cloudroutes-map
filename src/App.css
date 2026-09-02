@@ -1656,7 +1656,15 @@
    lands. It defaults to 0ms so the first placement does not fly in from the
    corner. Linear rather than eased: an ease-in-out on every hop reads as
    hesitation rather than as movement. */
-.bus-icon {
+/* Qualified with .leaflet-marker-icon purely for specificity. A blanket
+   `.leaflet-marker-icon { transition: transform ... }` used to sit further
+   down this file and won on source order, animating every hop over 220ms
+   whatever duration was set here — which is what made vehicles cross a whole
+   block in a fifth of a second and then sit still. It also made all 83 stop
+   markers slide into place after every zoom, since Leaflet repositions
+   markers on zoom and only .bus-icon is guarded against that. Markers other
+   than vehicles do not move, so none of them wants a transform transition. */
+.leaflet-marker-icon.bus-icon {
   transition-property: transform;
   transition-timing-function: linear;
   transition-duration: var(--move-duration, 0ms);
@@ -1665,7 +1673,7 @@
 
 /* See MarkerMotionGuard — during a zoom every marker is repositioned at once,
    and transitioning that makes the fleet drift into place after the pinch. */
-.map-zooming .bus-icon {
+.map-zooming .leaflet-marker-icon.bus-icon {
   transition: none;
 }
 
@@ -1815,10 +1823,6 @@
 .bus-stop-marker:hover .bus-stop-marker__tile {
   transform: scale(1.2);
   box-shadow: 0 4px 12px rgba(8, 47, 73, 0.4);
-}
-
-.leaflet-marker-icon {
-  transition: transform var(--dur) var(--ease-out);
 }
 
 /* ============================================

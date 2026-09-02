@@ -1,6 +1,18 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { Marker, Popup } from "react-leaflet";
-import { LatLng, latLng, Marker as LeafletMarker } from "leaflet";
+import {
+  LatLng,
+  latLng,
+  LatLngTuple,
+  Marker as LeafletMarker,
+} from "leaflet";
 import { useTranslation } from "react-i18next";
 import { busIcon } from "../../icons.ts";
 import { BusFreshness, capitalize, formatAge } from "../../helpers.ts";
@@ -14,7 +26,14 @@ import {
 
 type BusMarkerProps = {
   device: { name: string; category: string | null };
-  position: { latitude: number; longitude: number; course: number };
+  position: {
+    latitude: number;
+    longitude: number;
+    course: number;
+    /** GPS clock. The only trustworthy measure of time between two fixes. */
+    fixTime?: string;
+    deviceTime?: string;
+  };
   /** How recent this vehicle's last fix is. */
   freshness?: BusFreshness;
   /** Age of that fix in ms, shown in the popup when the vehicle is stale. */
@@ -42,8 +61,13 @@ type MovePlan =
 /**
  * Presentational marker for a live vehicle. Shared by the "all buses" and
  * "line only" marker layers, which differ only in how they pick devices.
+ *
+ * Memoised, and it has to be. A position message arrives about twice a second
+ * and re-renders the whole layer, but only one vehicle in it has actually
+ * moved; the cache merge hands back the identical position object for all the
+ * others, so every marker but that one can skip the render entirely.
  */
-export function BusMarker({
+function BusMarkerComponent({
   device,
   position,
   freshness = "live",
@@ -54,12 +78,22 @@ export function BusMarker({
 }: BusMarkerProps) {
   const { t } = useTranslation();
   const { latitude, longitude, course } = position;
+  const fixAt = Date.parse(position.fixTime ?? position.deviceTime ?? "");
   const markerRef = useRef<LeafletMarker>(null);
-  const lastFix = useRef<{ at: number; lat: number; lng: number } | null>(null);
+  const lastFix = useRef<Fix | null>(null);
   const expectedGap = useRef<number | null>(null);
   const awaitingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heading = useRef<number | null>(null);
   const plan = useRef<MovePlan | null>(null);
+  // react-leaflet compares `position` by reference and calls setLatLng on any
+  // change, so a fresh array literal each render would drag a marker that is
+  // mid-slide back to its destination on every re-render — about twice a
+  // second — and the next animation frame would pull it back again. That
+  // flicker is what still read as jumping.
+  const target = useMemo<LatLngTuple>(
+    () => [latitude, longitude],
+    [latitude, longitude]
+  );
   const busCategory = capitalize(device?.category || "bus");
   const busName = tidyVehicleName(device?.name ?? "Unknown");
   const isStale = freshness === "stale";
@@ -115,14 +149,33 @@ export function BusMarker({
           : expectedGap.current * (1 - GAP_SMOOTHING) + gap * GAP_SMOOTHING;
     }
 
-    lastFix.current = { at, lat: latitude, lng: longitude };
+    lastFix.current = { at, fixAt, lat: latitude, lng: longitude };
 
-    const duration = slideDuration(previous, latitude, longitude, at);
+    const duration = slideDuration(
+      previous,
+      latitude,
+      longitude,
+      fixAt,
+      at,
+      expectedGap.current
+    );
+
+    // Start the next stretch from where the vehicle visibly IS, not from its
+    // last fix. 36% of updates arrive before the previous stretch has finished
+    // — the feed is quicker than its own 10s cadence about a third of the time
+    // — and resuming from the last fix threw the marker forward to a point it
+    // had not reached yet before setting off again. That forward snap is what
+    // read as changing position rather than travelling. Mid-walk this ref
+    // holds the interpolated position, because the animation writes it every
+    // frame; react-leaflet has not applied the new one yet, since that happens
+    // in a passive effect after this.
+    const resumeFrom = markerRef.current?.getLatLng();
+
     const route =
       previous && duration > 0 && path
         ? pathBetween(
             path,
-            latLng(previous.lat, previous.lng),
+            resumeFrom ?? latLng(previous.lat, previous.lng),
             latLng(latitude, longitude),
             {
               maxOffRoute: MAX_OFF_ROUTE_M,
@@ -145,7 +198,7 @@ export function BusMarker({
 
     element.style.setProperty("--move-duration", `${css}ms`);
     element.style.setProperty("--turn-duration", `${css}ms`);
-  }, [latitude, longitude, path]);
+  }, [latitude, longitude, fixAt, path]);
 
   // Heading, when the vehicle is not being walked along its route. During a
   // walk it comes from the road being travelled instead, which is a better
@@ -193,7 +246,8 @@ export function BusMarker({
     };
 
     // react-leaflet has already placed the marker at the destination, so put
-    // it back at the start of the stretch before the first frame is drawn.
+    // it back at the start of the stretch — which is where it already was —
+    // before the first frame is drawn.
     const start = pointAt(route, 0);
 
     marker.setLatLng(start.point);
@@ -251,7 +305,7 @@ export function BusMarker({
   return (
     <Marker
       ref={markerRef}
-      position={[latitude, longitude]}
+      position={target}
       icon={busIcon(isStale)}
       title={busName}
       opacity={dimmed ? 0.25 : 1}
@@ -290,6 +344,8 @@ export function BusMarker({
   );
 }
 
+export const BusMarker = memo(BusMarkerComponent);
+
 /** Shortest signed rotation from one bearing to another, in [-180, 180). */
 function shortestTurn(from: number, to: number): number {
   return ((((to - from) % 360) + 540) % 360) - 180;
@@ -323,38 +379,60 @@ const MAX_OFF_ROUTE_M = 60;
  */
 const MAX_DETOUR_RATIO = 3;
 
+type Fix = { at: number; fixAt: number; lat: number; lng: number };
+
 /** Slides shorter than this look like a twitch. */
 const MIN_SLIDE_MS = 900;
+/** And longer than this, like drift. The measured cadence is 10s. */
+const MAX_SLIDE_MS = 20_000;
 /**
- * Beyond this a gap is a dropped feed rather than a reporting interval, so the
- * vehicle snaps. Set generously: whatever cadence the trackers actually report
- * at, a real interval should slide rather than jump, and interpolating means
- * the marker trails the true position by at most one interval either way.
+ * Beyond this a vehicle did not travel, it stopped reporting, so it snaps to
+ * wherever it turned up rather than gliding across the gap.
  */
-const MAX_SLIDE_MS = 60_000;
+const MAX_TRAVEL_GAP_MS = 60_000;
 /** Above this the gap is a dropped feed, not travel: ~120 km/h. */
 const MAX_PLAUSIBLE_SPEED_MS = 33;
 
 function slideDuration(
-  previous: { at: number; lat: number; lng: number } | null,
+  previous: Fix | null,
   latitude: number,
   longitude: number,
-  at: number
+  fixAt: number,
+  at: number,
+  expected: number | null
 ): number {
   // First placement: put the vehicle down, do not fly it in.
   if (!previous) return 0;
 
-  const gap = at - previous.at;
+  // Real travel time, from the GPS clock rather than from when the packet
+  // happened to land. Measured against the live feed the trackers report on a
+  // flat 10s beat, while arrival gaps run from 0.08s to 31.8s — that is the
+  // mobile network, not the vehicle, and judging movement by it declares
+  // ordinary travel impossible whenever two packets arrive together.
+  const travelled =
+    Number.isFinite(fixAt) && Number.isFinite(previous.fixAt)
+      ? fixAt - previous.fixAt
+      : at - previous.at;
 
-  if (gap <= 0 || gap > MAX_SLIDE_MS) return 0;
+  if (travelled > MAX_TRAVEL_GAP_MS) return 0;
 
-  const moved = latLng(previous.lat, previous.lng).distanceTo(
-    latLng(latitude, longitude)
+  // A duplicate or out-of-order fix carries no travel time to judge by. It is
+  // not evidence of a teleport, so it must not cause one — glide anyway.
+  if (travelled > 0) {
+    const moved = latLng(previous.lat, previous.lng).distanceTo(
+      latLng(latitude, longitude)
+    );
+
+    // A reconnect or a resumed background tab arrives as one huge leap.
+    // Sliding that would draw a bus through the town at speed; snap instead.
+    if (moved / (travelled / 1000) > MAX_PLAUSIBLE_SPEED_MS) return 0;
+  }
+
+  // Animate over the cadence we are actually being fed at, not over this one
+  // hop's arrival gap. Using the raw gap made 7% of hops change pace by more
+  // than 3x — dart, crawl, dart — which is exactly what reads as jumping.
+  return Math.min(
+    Math.max(expected ?? travelled, MIN_SLIDE_MS),
+    MAX_SLIDE_MS
   );
-
-  // A reconnect or a resumed background tab arrives as one huge leap. Sliding
-  // that would draw a bus straight through the town at speed; snap instead.
-  if (moved / (gap / 1000) > MAX_PLAUSIBLE_SPEED_MS) return 0;
-
-  return Math.max(gap, MIN_SLIDE_MS);
 }
