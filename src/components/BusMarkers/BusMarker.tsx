@@ -19,6 +19,7 @@ import { BusFreshness, capitalize, formatAge } from "../../helpers.ts";
 import { tidyVehicleName } from "./bus-labels.ts";
 import {
   MeasuredPath,
+  chooseRoute,
   measure,
   pathBetween,
   pointAt,
@@ -40,8 +41,10 @@ type BusMarkerProps = {
   age?: number;
   /** True when another line is focused and this vehicle is not on it. */
   dimmed?: boolean;
-  /** Waypoints of the line this vehicle runs, when it has one. */
+  /** Waypoints of the line this vehicle is assigned, if the tenant links them. */
   path?: LatLng[];
+  /** Every line's waypoints, to match a vehicle to a road when it is not. */
+  routes?: LatLng[][];
   /** True when this vehicle has been allocated room to show its name. */
   labelled?: boolean;
 };
@@ -74,6 +77,7 @@ function BusMarkerComponent({
   age = NaN,
   dimmed = false,
   path,
+  routes = EMPTY_ROUTES,
   labelled = false,
 }: BusMarkerProps) {
   const { t } = useTranslation();
@@ -85,6 +89,7 @@ function BusMarkerComponent({
   const awaitingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heading = useRef<number | null>(null);
   const plan = useRef<MovePlan | null>(null);
+  const road = useRef<LatLng[] | null>(null);
   // react-leaflet compares `position` by reference and calls setLatLng on any
   // change, so a fresh array literal each render would drag a marker that is
   // mid-slide back to its destination on every re-render — about twice a
@@ -170,13 +175,20 @@ function BusMarkerComponent({
     // frame; react-leaflet has not applied the new one yet, since that happens
     // in a passive effect after this.
     const resumeFrom = markerRef.current?.getLatLng();
+    const here = latLng(latitude, longitude);
+
+    // Which road this vehicle is on. Prefers its assigned line, falls back to
+    // whichever line it is actually nearest, because some tenants never link
+    // buses to lines at all and every vehicle there would otherwise cut every
+    // corner in a straight line.
+    road.current = chooseRoute(path, road.current, routes, here, MAX_OFF_ROUTE_M);
 
     const route =
-      previous && duration > 0 && path
+      previous && duration > 0 && road.current
         ? pathBetween(
-            path,
+            road.current,
             resumeFrom ?? latLng(previous.lat, previous.lng),
-            latLng(latitude, longitude),
+            here,
             {
               maxOffRoute: MAX_OFF_ROUTE_M,
               maxDetourRatio: MAX_DETOUR_RATIO,
@@ -198,7 +210,7 @@ function BusMarkerComponent({
 
     element.style.setProperty("--move-duration", `${css}ms`);
     element.style.setProperty("--turn-duration", `${css}ms`);
-  }, [latitude, longitude, fixAt, path]);
+  }, [latitude, longitude, fixAt, path, routes]);
 
   // Heading, when the vehicle is not being walked along its route. During a
   // walk it comes from the road being travelled instead, which is a better
@@ -256,7 +268,7 @@ function BusMarkerComponent({
     frame = requestAnimationFrame(step);
 
     return () => cancelAnimationFrame(frame);
-  }, [latitude, longitude, path, turnTo]);
+  }, [latitude, longitude, path, routes, turnTo]);
 
   // The name, when the layer has decided there is room for it. Written as a
   // custom property that CSS `content` reads, so the icon markup stays shared
@@ -380,6 +392,9 @@ const MAX_OFF_ROUTE_M = 60;
 const MAX_DETOUR_RATIO = 3;
 
 type Fix = { at: number; fixAt: number; lat: number; lng: number };
+
+/** Stable default so an absent `routes` prop cannot break memoisation. */
+const EMPTY_ROUTES: LatLng[][] = [];
 
 /** Slides shorter than this look like a twitch. */
 const MIN_SLIDE_MS = 900;

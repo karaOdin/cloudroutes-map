@@ -82,6 +82,60 @@ function snap(path: LatLng[], target: LatLng): Snapped | null {
   };
 }
 
+/** Metres from a point to the nearest part of a polyline. */
+export function distanceToPath(path: LatLng[], point: LatLng): number {
+  const snapped = snap(path, point);
+
+  return snapped ? snapped.offRoute : Infinity;
+}
+
+/**
+ * The road to interpolate a vehicle along.
+ *
+ * Its assigned line is preferred, but that link is admin data and is simply
+ * absent in some tenants — Constantine returns `buses: []` on every line — and
+ * without a fallback every vehicle there interpolates in a straight line and
+ * cuts corners through buildings.
+ *
+ * So when there is no usable assignment, the nearest line is used instead.
+ * That is sound for this purpose: the point is not to know which service the
+ * vehicle is running, it is to know which road it is on, and where two lines
+ * share a road they describe the same tarmac. The caller's off-route and
+ * detour guards still decide whether the result may be used for a given hop.
+ *
+ * `remembered` is the road chosen last time, checked first so that the full
+ * scan only runs when a vehicle actually leaves it.
+ */
+export function chooseRoute(
+  assigned: LatLng[] | undefined,
+  remembered: LatLng[] | null,
+  all: LatLng[][],
+  point: LatLng,
+  maxOffRoute: number
+): LatLng[] | null {
+  if (assigned && distanceToPath(assigned, point) <= maxOffRoute) {
+    return assigned;
+  }
+
+  if (remembered && distanceToPath(remembered, point) <= maxOffRoute) {
+    return remembered;
+  }
+
+  let best: LatLng[] | null = null;
+  let bestDistance = maxOffRoute;
+
+  for (const path of all) {
+    const distance = distanceToPath(path, point);
+
+    if (distance <= bestDistance) {
+      bestDistance = distance;
+      best = path;
+    }
+  }
+
+  return best;
+}
+
 type PathBetweenOptions = {
   /** How far off the line a fix may be and still count as on this route. */
   maxOffRoute: number;

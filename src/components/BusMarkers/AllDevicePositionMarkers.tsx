@@ -57,7 +57,8 @@ export function AllDevicePositionMarkers() {
       freshness={freshness}
       age={busPositionAge(device, position, now)}
       dimmed={!!focusedDeviceIds && !focusedDeviceIds.has(device.uniqueId)}
-      path={devicePaths.get(device.uniqueId)}
+      path={devicePaths.byDevice.get(device.uniqueId)}
+      routes={devicePaths.all}
       labelled={labelled.has(device.id)}
     />
   ));
