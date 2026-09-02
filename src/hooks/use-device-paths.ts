@@ -29,9 +29,17 @@ export function useDevicePaths(): RoutePaths {
     lines?.forEach((line) => {
       const waypoints = (line.waypoints || []) as LatLngExpression[];
 
-      if (waypoints.length < 2) return;
+      // `latLng()` answers null for anything it cannot read rather than
+      // throwing, and tenant data does contain such rows — M'sila's "ligne 18"
+      // stores a single flat pair, [lat, lng], where a list of pairs belongs,
+      // which reads as two bare numbers and yields two nulls. Letting those
+      // into a path put nulls in front of the geometry and took the whole map
+      // down with it, so they are dropped at the door.
+      const points = waypoints
+        .map((waypoint) => latLng(waypoint))
+        .filter((point): point is LatLng => point != null);
 
-      const points = waypoints.map((waypoint) => latLng(waypoint));
+      if (points.length < 2) return;
 
       all.push(points);
 

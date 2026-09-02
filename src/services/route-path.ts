@@ -41,6 +41,11 @@ function snap(path: LatLng[], target: LatLng): Snapped | null {
   let bestDistance = Infinity;
 
   for (let i = 0; i < path.length - 1; i += 1) {
+    // Defensive: a malformed point here would otherwise throw inside a render
+    // and unmount the entire map, which is far too high a price for one bad
+    // row of tenant data.
+    if (!path[i] || !path[i + 1]) continue;
+
     const ax = path[i].lng * k;
     const ay = path[i].lat;
     const bx = path[i + 1].lng * k;
