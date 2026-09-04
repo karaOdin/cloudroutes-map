@@ -94,19 +94,33 @@ export function distanceToPath(path: LatLng[], point: LatLng): number {
   return snapped ? snapped.offRoute : Infinity;
 }
 
+export type ChosenRoute = {
+  path: LatLng[];
+  /** The tolerance this match was made under, to be reused when slicing it. */
+  maxOffRoute: number;
+};
+
 /**
  * The road to interpolate a vehicle along.
  *
  * Its assigned line is preferred, but that link is admin data and is simply
- * absent in some tenants — Constantine returns `buses: []` on every line — and
- * without a fallback every vehicle there interpolates in a straight line and
- * cuts corners through buildings.
+ * absent in some tenants — Constantine and M'sila return `buses: []` on every
+ * line — and without a fallback every vehicle there interpolates in a straight
+ * line and cuts corners through buildings.
  *
- * So when there is no usable assignment, the nearest line is used instead.
- * That is sound for this purpose: the point is not to know which service the
- * vehicle is running, it is to know which road it is on, and where two lines
- * share a road they describe the same tarmac. The caller's off-route and
- * detour guards still decide whether the result may be used for a given hop.
+ * So when there is no usable assignment, the nearest line is used instead. That
+ * is sound for this purpose: the point is not to know which service the vehicle
+ * is running, it is to know which road it is on, and where two lines share a
+ * road they describe the same tarmac.
+ *
+ * A guessed match is held to a tighter tolerance than an assigned one, because
+ * following a road displaces the marker onto it — by up to the tolerance. With
+ * the right road that is a correction, since GPS noise exceeds the snap; with a
+ * parallel street it is an error of the same size. An assignment is evidence
+ * and earns the looser bound; proximity alone does not. Measured on live
+ * Constantine data, where every match is a guess, tightening 60m to 25m cost
+ * 2 percentage points of coverage (93% to 91% of moving hops) and halved the
+ * worst displacement, 47m to 21m.
  *
  * `remembered` is the road chosen last time, checked first so that the full
  * scan only runs when a vehicle actually leaves it.
@@ -116,18 +130,19 @@ export function chooseRoute(
   remembered: LatLng[] | null,
   all: LatLng[][],
   point: LatLng,
-  maxOffRoute: number
-): LatLng[] | null {
-  if (assigned && distanceToPath(assigned, point) <= maxOffRoute) {
-    return assigned;
+  assignedTolerance: number,
+  guessedTolerance: number
+): ChosenRoute | null {
+  if (assigned && distanceToPath(assigned, point) <= assignedTolerance) {
+    return { path: assigned, maxOffRoute: assignedTolerance };
   }
 
-  if (remembered && distanceToPath(remembered, point) <= maxOffRoute) {
-    return remembered;
+  if (remembered && distanceToPath(remembered, point) <= guessedTolerance) {
+    return { path: remembered, maxOffRoute: guessedTolerance };
   }
 
   let best: LatLng[] | null = null;
-  let bestDistance = maxOffRoute;
+  let bestDistance = guessedTolerance;
 
   for (const path of all) {
     const distance = distanceToPath(path, point);
@@ -138,7 +153,7 @@ export function chooseRoute(
     }
   }
 
-  return best;
+  return best ? { path: best, maxOffRoute: guessedTolerance } : null;
 }
 
 type PathBetweenOptions = {

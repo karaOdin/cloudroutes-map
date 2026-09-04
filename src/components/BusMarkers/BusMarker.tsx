@@ -181,16 +181,25 @@ function BusMarkerComponent({
     // whichever line it is actually nearest, because some tenants never link
     // buses to lines at all and every vehicle there would otherwise cut every
     // corner in a straight line.
-    road.current = chooseRoute(path, road.current, routes, here, MAX_OFF_ROUTE_M);
+    const chosen = chooseRoute(
+      path,
+      road.current,
+      routes,
+      here,
+      MAX_OFF_ROUTE_M,
+      MAX_GUESSED_OFF_ROUTE_M
+    );
+
+    road.current = chosen?.path ?? null;
 
     const route =
-      previous && duration > 0 && road.current
+      previous && duration > 0 && chosen
         ? pathBetween(
-            road.current,
+            chosen.path,
             resumeFrom ?? latLng(previous.lat, previous.lng),
             here,
             {
-              maxOffRoute: MAX_OFF_ROUTE_M,
+              maxOffRoute: chosen.maxOffRoute,
               maxDetourRatio: MAX_DETOUR_RATIO,
             }
           )
@@ -384,6 +393,15 @@ const GAP_SMOOTHING = 0.3;
  * currently running, and claiming it followed the route would be fiction.
  */
 const MAX_OFF_ROUTE_M = 60;
+/**
+ * The same, for a road matched only by proximity because the vehicle has no
+ * line assigned. Following a road moves the marker onto it by up to the
+ * tolerance — a correction when the road is right, an error of the same size
+ * when it is a parallel street — so a guess is held to a tighter bound than an
+ * assignment. On live Constantine data, where every match is a guess, 25m
+ * against 60m cost two points of coverage and halved the worst displacement.
+ */
+const MAX_GUESSED_OFF_ROUTE_M = 25;
 /**
  * Reject a route this many times longer than the direct line. Usually means
  * the two fixes snapped to opposite arms of a loop, which would send the
