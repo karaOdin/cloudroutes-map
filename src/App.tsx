@@ -50,6 +50,8 @@ declare global {
       TRACCAR_URL?: string;
       TRACCAR_WS_URL?: string;
       TRACCAR_TOKEN?: string;
+      TRACCAR_USER?: string;
+      TRACCAR_PASSWORD?: string;
       LINE_IS_DISABLED?: boolean;
     };
     language?: string;

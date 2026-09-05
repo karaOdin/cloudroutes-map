@@ -121,33 +121,44 @@ Tenants run different Traccar majors and they are **not** interchangeable.
 | WebSocket `?token=` | ✅ 101 | ❌ **503** |
 | WebSocket with session cookie | ✅ 101 | ✅ by curl, ❌ **refused from a browser** |
 
-**On Traccar 4 a browser cannot reach Traccar at all.** The only credential it
-accepts for `/devices` and the socket is a `JSESSIONID` cookie returned
-*without* a `SameSite` attribute — browsers default that to `Lax` and never
-send it on a cross-site request, and the app is always on a different site to
-Traccar. Verified in a real browser: `/session` succeeds with
-`credentials: include`, then `/devices` still answers 401 and the socket is
-still refused.
+**Traccar 4 needs a login, not a token.** It answers 400 to `Authorization:
+Bearer` — it tries to base64-decode the value as Basic credentials — and 401 to
+`?token=` on everything except `/session`. Its only usable credential from a
+browser is **Basic auth**, which works because it is a header we control and so
+survives a cross-origin request where a cookie does not. Verified from a
+browser against 4.14: `/devices` 200 with 51 rows, `/positions` 200 with 43.
 
-That is a server configuration limit, not something the client can work
-around. It would be fixed by the Traccar host setting `SameSite=None; Secure`
-on its session cookie, or by upgrading.
+Set `VITE_TRACCAR_USER` and `VITE_TRACCAR_PASSWORD` for such a tenant and the
+client switches to Basic. Left unset, nothing changes and the token is used, so
+tenants on 5+ are untouched.
 
-**What the app does instead.** Positions come from the *tenant* API, not from
-Traccar, so they are unaffected. The map therefore:
+> ⚠️ A password in a client bundle is readable by anyone who opens the app.
+> Use a dedicated, read-only Traccar account for this, never an administrator.
 
-- draws vehicles from **positions alone**, standing in a `#<deviceId>` name
-  when the device list is unreachable. Names and categories are the only thing
-  lost.
-- **stops retrying the socket** after `GIVE_UP_AFTER_FAILURES` (4) attempts
-  with no successful open, rather than burning a TLS handshake every 30 s
-  forever. `isSocketUnusable()` reports this. A foreground or `online` event
-  retries once more, since conditions may have changed.
-- runs on the HTTP fallback poll as its live channel, at 12 s + jitter.
+**The WebSocket needs one change on the server.** Traccar 4 authenticates its
+socket by session cookie and nothing else — `?token=` answers 503, and so does
+Basic auth on the handshake. The cookie comes back as `JSESSIONID=...; Path=/`
+with no `SameSite`, and a browser will not store, let alone send, such a cookie
+cross-site. Confirmed by capturing the handshake: the cookie is never stored,
+no `Cookie` header is sent, and the server answers 503.
 
-The `Authorization: Bearer` header is **kept**, because Traccar 6 requires it
-for `/devices` and removing it would break every current tenant. On v4 it turns
-a 401 into a 400 — both unreachable, so nothing is lost.
+Traccar's own dashboard has a live socket because it is served *from* that
+host, so its handshake is same-origin.
+
+One nginx directive on the Traccar host fixes it:
+
+```nginx
+proxy_cookie_flags ~ secure samesite=none;
+```
+
+Proven by injecting exactly that cookie into a browser and loading the app
+cross-origin: the socket opened and streamed 46 frames of positions and
+devices. The client is already prepared — with `VITE_TRACCAR_USER` set it asks
+for a session before connecting and sends credentials — so the socket starts
+working the moment the header changes, with no further release.
+
+Until then those tenants run on the HTTP fallback poll, which works on every
+version.
 
 **Payload shape also differs.** `/gps/positstions` does not always answer with
 an array: when a tenant's backend cannot reach its own Traccar it answers
@@ -525,6 +536,7 @@ CSS override that one measurement of the rendered pixels found immediately.
 | `RECONNECT_BASE_MS` / `MAX` | 1 s / 30 s | `traccar-socket.ts` | backoff bounds |
 | `SILENCE_TIMEOUT_MS` | 60 s | `traccar-socket.ts` | ~25× the largest observed message gap |
 | `GIVE_UP_AFTER_FAILURES` | 4 | `traccar-socket.ts` | a socket that never opens is a v4 server, not a bad network |
+| `VITE_TRACCAR_USER` / `_PASSWORD` | unset | `.env` | set only for Traccar 4 tenants; switches to Basic auth |
 | `FALLBACK_POLL_MS` | 12 s | `use-device-position.ts` | just above the 9.8 s median interval |
 | `POLL_JITTER_MS` | 0–5 s | `use-device-position.ts` | avoids a synchronised load spike |
 
@@ -553,8 +565,11 @@ These are **admin data issues**, not code. Each degrades a real feature.
 - **Traccar 4.14** — no browser-reachable Traccar; runs on the HTTP fallback
 - `/gps/positstions` persistently returns
   `{"message":"GPS server temporarily unavailable","positions":[]}` — the
-  tenant backend cannot reach its own Traccar, so there is **no position data
-  at all** until that is fixed
+  tenant backend cannot reach its own Traccar. The client falls back to
+  Traccar's own `/positions` for exactly this case, so the map works anyway;
+  the backend still wants fixing.
+- the Traccar host needs `proxy_cookie_flags ~ secure samesite=none;` before
+  the socket can work — see §2.4
 - `/stops` returns 0 rows
 
 ### M'sila

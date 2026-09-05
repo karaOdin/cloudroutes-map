@@ -59,6 +59,27 @@ export async function initTraccarSession() {
   });
 }
 
+/**
+ * How to authenticate to this tenant's Traccar.
+ *
+ * Bearer is what Traccar 5+ wants and is the default, unchanged. Traccar 4
+ * does not understand it — it tries to base64-decode the value as Basic
+ * credentials and answers 400 — so those tenants configure a login instead and
+ * get Basic auth, which is the only credential that both works there and
+ * survives a cross-origin request. Verified against a 4.14 server from a
+ * browser: /devices and /positions both 200.
+ */
+function traccarAuthorization(): string {
+  if (Env.TRACCAR_USER && Env.TRACCAR_PASSWORD) {
+    return `Basic ${btoa(`${Env.TRACCAR_USER}:${Env.TRACCAR_PASSWORD}`)}`;
+  }
+
+  return `Bearer ${Env.TRACCAR_TOKEN}`;
+}
+
+export const usesTraccarBasicAuth = (): boolean =>
+  Boolean(Env.TRACCAR_USER && Env.TRACCAR_PASSWORD);
+
 export const traccarClient = axios.create({
   baseURL: Env.TRACCAR_URL,
   params: {
@@ -67,9 +88,37 @@ export const traccarClient = axios.create({
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
-    Authorization: `Bearer ${Env.TRACCAR_TOKEN}`,
+    Authorization: traccarAuthorization(),
   },
+  // Only on the legacy path, where the socket needs a session cookie. Left off
+  // elsewhere so nothing changes for tenants that work on the token alone.
+  withCredentials: usesTraccarBasicAuth(),
 });
+
+/**
+ * Ask Traccar for a session, so the browser holds its cookie.
+ *
+ * Only useful on the legacy path: Traccar 4 authenticates its WebSocket by
+ * session cookie and nothing else — not `?token=`, which answers 503, and not
+ * Basic auth, which answers 503 on the handshake as well. Verified against a
+ * 4.14 server.
+ *
+ * Whether the browser will keep that cookie is up to the Traccar host: it is
+ * returned as `JSESSIONID=...; Path=/` with no `SameSite`, and a browser will
+ * not store, let alone send, such a cookie cross-site. Once the host adds
+ * `SameSite=None; Secure` the socket connects — verified by injecting exactly
+ * that cookie into a browser and opening the socket cross-origin, which
+ * streamed positions and devices normally. Until then this is harmless and the
+ * feed falls back to polling.
+ */
+export async function ensureTraccarSession(): Promise<void> {
+  if (!usesTraccarBasicAuth()) return;
+
+  await axios.get(`${Env.TRACCAR_URL}/session`, {
+    params: { token: Env.TRACCAR_TOKEN },
+    withCredentials: true,
+  });
+}
 
 export async function initTraccarClient() {
   await traccarClient.get("/session");

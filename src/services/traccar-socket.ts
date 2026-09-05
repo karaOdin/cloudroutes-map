@@ -1,4 +1,5 @@
 import { Env } from "../config/env.ts";
+import { ensureTraccarSession } from "../helpers.ts";
 
 /**
  * Traccar position feed.
@@ -61,6 +62,7 @@ let connected = false;
 let lastMessageAt = 0;
 let everOpened = false;
 let unusable = false;
+let connecting = false;
 
 function setConnected(next: boolean) {
   if (connected === next) return;
@@ -97,8 +99,27 @@ function connect() {
     return;
   }
 
-  clearTimeout(reconnectTimer);
+  // Asking for a session first made connecting asynchronous, so two callers
+  // could both pass the readyState check above before either had a socket to
+  // show for it, and the feed would be delivered twice over two connections.
+  if (connecting) return;
 
+  clearTimeout(reconnectTimer);
+  connecting = true;
+
+  // Legacy servers authenticate the socket by session cookie only, so ask for
+  // one first. It resolves immediately and does nothing everywhere else.
+  ensureTraccarSession()
+    .catch(() => {
+      /* A session we could not get is one the handshake will do without. */
+    })
+    .then(openSocket)
+    .finally(() => {
+      connecting = false;
+    });
+}
+
+function openSocket() {
   try {
     socket = new WebSocket(
       `${Env.TRACCAR_WS_URL}?token=${Env.TRACCAR_TOKEN}`

@@ -25,11 +25,43 @@ function toPositions(data: PositionsResponse): Position[] {
 
 // TODO: move getPositions and getDevices to @cloudroutes/core package
 async function getPositions() {
-  const { data } = await axios.get<PositionsResponse>(
-    `${Env.API_URL}/gps/positstions`,
-  );
+  try {
+    const { data } = await axios.get<PositionsResponse>(
+      `${Env.API_URL}/gps/positstions`,
+    );
 
-  return toPositions(data);
+    // An array, even an empty one, is an answer. Only the envelope means the
+    // tenant could not reach its own Traccar.
+    if (Array.isArray(data)) return data;
+
+    const positions = toPositions(data);
+
+    if (positions.length > 0) return positions;
+
+    return await getPositionsFromTraccar(positions);
+  } catch {
+    return await getPositionsFromTraccar([]);
+  }
+}
+
+/**
+ * Last resort when a tenant's own GPS proxy is down — Djelfa answers
+ * `{ message: "GPS server temporarily unavailable", positions: [] }`
+ * persistently — while Traccar itself is up and holding the same data.
+ *
+ * Deliberately only reachable from that failure: with a healthy tenant
+ * endpoint this never runs, so nothing changes for tenants that work today.
+ * If Traccar cannot be reached either, the empty answer stands rather than the
+ * error propagating and blanking the map.
+ */
+async function getPositionsFromTraccar(fallback: Position[]) {
+  try {
+    const { data } = await traccarClient.get<Array<Position>>("/positions");
+
+    return Array.isArray(data) ? data : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 async function getDevices() {
