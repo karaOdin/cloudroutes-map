@@ -5,19 +5,38 @@ import { traccarClient } from "../helpers.ts";
 import { Env } from "../config/env.ts";
 import { useTraccarSocketStatus } from "./use-traccar-socket-status.ts";
 
+/**
+ * The positions endpoint does not always answer with an array. When a tenant's
+ * backend cannot reach its own Traccar it answers with an envelope instead —
+ * `{ message: "GPS server temporarily unavailable", positions: [] }` — and
+ * older tenants answer that way routinely. Handing that straight on meant
+ * `positions.data.find(...)` threw during render, and with no error boundary
+ * above it that blanked the entire map rather than showing it without vehicles.
+ */
+type PositionsResponse =
+  | Position[]
+  | { positions?: Position[] | null; message?: string };
+
+function toPositions(data: PositionsResponse): Position[] {
+  if (Array.isArray(data)) return data;
+
+  return Array.isArray(data?.positions) ? data.positions : [];
+}
+
 // TODO: move getPositions and getDevices to @cloudroutes/core package
 async function getPositions() {
-  const { data } = await axios.get<Array<Position>>(
+  const { data } = await axios.get<PositionsResponse>(
     `${Env.API_URL}/gps/positstions`,
   );
 
-  return data;
+  return toPositions(data);
 }
 
 async function getDevices() {
   const { data } = await traccarClient.get<Array<Device>>("/devices");
 
-  return data;
+  // Same defence: never let a non-array reach the marker layers.
+  return Array.isArray(data) ? data : [];
 }
 
 /**

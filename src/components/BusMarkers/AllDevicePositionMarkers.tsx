@@ -1,4 +1,5 @@
 import { useDevicePosition } from "../../hooks/use-device-position.ts";
+import { Device } from "../../types.ts";
 import { BusMarker } from "./BusMarker.tsx";
 import { busFreshness, busPositionAge } from "../../helpers.ts";
 import { useLivePositions } from "../../hooks/use-live-positions.ts";
@@ -17,17 +18,29 @@ export function AllDevicePositionMarkers() {
 
   useLivePositions();
 
-  if (!positions?.data || !devices?.data) return <></>;
+  if (!positions?.data) return <></>;
 
-  // Resolve what is actually going to be drawn before deciding anything about
-  // labels — a label's competition is the other vehicles on screen, not the
-  // ones filtered out or too stale to draw.
+  // Driven by positions, not by the Traccar device list.
+  //
+  // The device list is only ever decoration here — names and categories — but
+  // iterating it meant no vehicle could be drawn without it, and on Traccar 4
+  // tenants a browser cannot reach it at all: that version rejects the Bearer
+  // header outright and authenticates only by a session cookie which comes
+  // back without a SameSite attribute, so it is never sent cross-site.
+  // Positions come from the tenant's own API and are unaffected, so a vehicle
+  // that is reporting is now drawn whether or not Traccar can be reached.
+  const knownDevices = devices?.data ?? [];
+  const deviceById = new Map(knownDevices.map((device) => [device.id, device]));
   const drawn = [];
 
-  for (const device of devices.data) {
-    const position = positions.data.find((p) => p.deviceId === device.id);
+  for (const position of positions.data) {
+    const known = deviceById.get(position.deviceId);
 
-    if (!position) continue;
+    // While the list is trustworthy, a position with no device behind it is a
+    // stale row rather than a vehicle. Only stand in when there is no list.
+    if (!known && knownDevices.length > 0) continue;
+
+    const device = known ?? unknownDevice(position.deviceId);
 
     // Traccar keeps serving the last known fix forever. A vehicle that has
     // not reported for half an hour is not where this says it is, so it is
@@ -62,4 +75,18 @@ export function AllDevicePositionMarkers() {
       labelled={labelled.has(device.id)}
     />
   ));
+}
+
+/**
+ * Stand-in for a vehicle that is reporting a position while its Traccar record
+ * is out of reach. Named by device id, which is honest: it is what we know.
+ */
+function unknownDevice(deviceId: number): Device {
+  return {
+    id: deviceId,
+    name: `#${deviceId}`,
+    uniqueId: "",
+    status: "",
+    category: null,
+  } as Device;
 }

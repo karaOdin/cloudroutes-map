@@ -107,6 +107,58 @@ for no visible difference.
 
 ---
 
+## 2.4 Traccar version compatibility
+
+Tenants run different Traccar majors and they are **not** interchangeable.
+`/api/server` reports `version`; `gps-probe.mjs` prints it and flags v4.
+
+| | Traccar 6.11 | Traccar 4.14 |
+|---|---|---|
+| `/devices` with `Authorization: Bearer` | ✅ 200 | ❌ **400** — Bearer not understood |
+| `/devices` with `?token=` | ❌ 401 | ❌ 401 |
+| `/devices` with session cookie | ✅ | ✅ by curl, ❌ **401 from a browser** |
+| `/session?token=` | ✅ 200 | ✅ 200 (❌ 400 if Bearer is also sent) |
+| WebSocket `?token=` | ✅ 101 | ❌ **503** |
+| WebSocket with session cookie | ✅ 101 | ✅ by curl, ❌ **refused from a browser** |
+
+**On Traccar 4 a browser cannot reach Traccar at all.** The only credential it
+accepts for `/devices` and the socket is a `JSESSIONID` cookie returned
+*without* a `SameSite` attribute — browsers default that to `Lax` and never
+send it on a cross-site request, and the app is always on a different site to
+Traccar. Verified in a real browser: `/session` succeeds with
+`credentials: include`, then `/devices` still answers 401 and the socket is
+still refused.
+
+That is a server configuration limit, not something the client can work
+around. It would be fixed by the Traccar host setting `SameSite=None; Secure`
+on its session cookie, or by upgrading.
+
+**What the app does instead.** Positions come from the *tenant* API, not from
+Traccar, so they are unaffected. The map therefore:
+
+- draws vehicles from **positions alone**, standing in a `#<deviceId>` name
+  when the device list is unreachable. Names and categories are the only thing
+  lost.
+- **stops retrying the socket** after `GIVE_UP_AFTER_FAILURES` (4) attempts
+  with no successful open, rather than burning a TLS handshake every 30 s
+  forever. `isSocketUnusable()` reports this. A foreground or `online` event
+  retries once more, since conditions may have changed.
+- runs on the HTTP fallback poll as its live channel, at 12 s + jitter.
+
+The `Authorization: Bearer` header is **kept**, because Traccar 6 requires it
+for `/devices` and removing it would break every current tenant. On v4 it turns
+a 401 into a 400 — both unreachable, so nothing is lost.
+
+**Payload shape also differs.** `/gps/positstions` does not always answer with
+an array: when a tenant's backend cannot reach its own Traccar it answers
+`{ "message": "GPS server temporarily unavailable", "positions": [] }`.
+Djelfa answers that persistently at the time of writing. That envelope used to
+reach `positions.data.find(...)` and throw during render, blanking the whole
+map. It is now normalised to an array at the fetch, and both cache merges
+refuse to map a non-array.
+
+---
+
 ## 3. Measured feed characteristics
 
 From `scripts/gps-probe.mjs`, 150 s captures against live tenants.
@@ -472,6 +524,7 @@ CSS override that one measurement of the rendered pixels found immediately.
 | `MINOR_STOP_MIN_ZOOM` | 15 | `icons.ts` | map opens at 15 |
 | `RECONNECT_BASE_MS` / `MAX` | 1 s / 30 s | `traccar-socket.ts` | backoff bounds |
 | `SILENCE_TIMEOUT_MS` | 60 s | `traccar-socket.ts` | ~25× the largest observed message gap |
+| `GIVE_UP_AFTER_FAILURES` | 4 | `traccar-socket.ts` | a socket that never opens is a v4 server, not a bad network |
 | `FALLBACK_POLL_MS` | 12 s | `use-device-position.ts` | just above the 9.8 s median interval |
 | `POLL_JITTER_MS` | 0–5 s | `use-device-position.ts` | avoids a synchronised load spike |
 
@@ -495,6 +548,14 @@ These are **admin data issues**, not code. Each degrades a real feature.
 - **all 12 lines return `buses: []`** — nothing is linked to a line. Affects
   line filtering, focus mode and "line only" bus mode. Route-following now works
   anyway via nearest-line matching, but the rest does not.
+
+### Djelfa
+- **Traccar 4.14** — no browser-reachable Traccar; runs on the HTTP fallback
+- `/gps/positstions` persistently returns
+  `{"message":"GPS server temporarily unavailable","positions":[]}` — the
+  tenant backend cannot reach its own Traccar, so there is **no position data
+  at all** until that is fixed
+- `/stops` returns 0 rows
 
 ### M'sila
 - **`ligne 18` has a malformed `waypoints`**: a single flat `[lat, lng]` pair

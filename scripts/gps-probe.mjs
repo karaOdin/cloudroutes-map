@@ -164,7 +164,16 @@ console.log(`  traccar  ${TRACCAR}`);
 console.log(`  socket   ${WS}\n`);
 
 console.log("Fetching baseline");
+const server = (await getJson(`${TRACCAR}/server`, "traccar /server")).data;
 const session = await getJson(t("/session"), "traccar /session");
+
+// Traccar 4 rejects the Bearer header the app sends (400) and authenticates
+// its socket by session cookie only, which browsers will not send cross-site.
+// Those tenants can only ever run on the HTTP fallback, so say so plainly.
+if (server?.version) {
+  const major = Number(String(server.version).split(".")[0]);
+  console.log(`  traccar version        ${server.version}${major < 5 ? "   <-- v4: no browser socket, HTTP fallback only" : ""}`);
+}
 const devices = (await getJson(t("/devices"), "traccar /devices")).data ?? [];
 const tPositions = (await getJson(t("/positions"), "traccar /positions")).data ?? [];
 const lines = (await getJson(`${API}/lines`, "api /lines")).data ?? [];

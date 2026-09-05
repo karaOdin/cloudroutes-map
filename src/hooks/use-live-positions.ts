@@ -66,7 +66,9 @@ function mergePositions(
   current: Position[] | undefined,
   incoming: Position[]
 ): Position[] | undefined {
-  if (!current) return current;
+  // A cache holding an error envelope rather than a list must not be mapped.
+  if (!Array.isArray(current)) return current;
+  if (!Array.isArray(incoming)) return current;
 
   const pending = new Map(incoming.map((p) => [p.deviceId, p]));
 
@@ -114,7 +116,9 @@ function mergeDevices(
   current: Device[] | undefined,
   incoming: Device[]
 ): Device[] | undefined {
-  if (!current) return current;
+  // A cache holding an error envelope rather than a list must not be mapped.
+  if (!Array.isArray(current)) return current;
+  if (!Array.isArray(incoming)) return current;
 
   const pending = new Map(incoming.map((d) => [d.id, d]));
   let changed = false;

@@ -32,6 +32,25 @@ const RECONNECT_MAX_MS = 30_000;
 const SILENCE_TIMEOUT_MS = 60_000;
 const SILENCE_CHECK_MS = 15_000;
 
+/**
+ * How many times to fail before concluding this server has no usable socket
+ * for us, rather than that the network is having a bad moment.
+ *
+ * Traccar 4 authenticates its socket by session cookie only — `?token=` in the
+ * query answers 503 — and that cookie comes back without a SameSite attribute,
+ * which browsers treat as Lax and will not send on a cross-site handshake. The
+ * app is served from a different origin to Traccar, so on those tenants the
+ * socket can never open, however many times it is tried. Verified in a real
+ * browser against a 4.14 server: refused with the token, refused after a
+ * successful credentialed /session, refused with both.
+ *
+ * Retrying forever there costs a TLS handshake every 30s for nothing. Giving
+ * up leaves the HTTP fallback as the live channel, which works on every
+ * version. A foreground or `online` event still tries again, since it costs
+ * little and conditions may genuinely have changed.
+ */
+const GIVE_UP_AFTER_FAILURES = 4;
+
 const messageListeners = new Set<MessageListener>();
 const statusListeners = new Set<StatusListener>();
 
@@ -40,6 +59,8 @@ let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let attempts = 0;
 let connected = false;
 let lastMessageAt = 0;
+let everOpened = false;
+let unusable = false;
 
 function setConnected(next: boolean) {
   if (connected === next) return;
@@ -50,6 +71,14 @@ function setConnected(next: boolean) {
 
 function scheduleReconnect() {
   clearTimeout(reconnectTimer);
+
+  // Never opened, and has failed enough times to mean it: this server has no
+  // socket we can use. Stop, and let the HTTP fallback carry the feed.
+  if (!everOpened && attempts >= GIVE_UP_AFTER_FAILURES) {
+    unusable = true;
+
+    return;
+  }
 
   const delay = Math.min(RECONNECT_BASE_MS * 2 ** attempts, RECONNECT_MAX_MS);
 
@@ -81,6 +110,7 @@ function connect() {
 
   socket.addEventListener("open", () => {
     attempts = 0;
+    everOpened = true;
     lastMessageAt = Date.now();
     setConnected(true);
   });
@@ -106,9 +136,11 @@ function connect() {
   socket.addEventListener("error", () => socket?.close());
 }
 
-/** Reconnect now rather than waiting out the backoff. */
+/** Reconnect now rather than waiting out the backoff, and try a server we
+ *  had written off — coming back to the foreground is cheap enough to retry. */
 function reconnectImmediately() {
   attempts = 0;
+  unusable = false;
   connect();
 }
 
@@ -161,4 +193,13 @@ export function subscribeToSocketStatus(listener: StatusListener) {
 /** True only while the socket is open and has spoken recently. */
 export function isSocketConnected(): boolean {
   return connected;
+}
+
+/**
+ * True once this server has been judged to have no socket we can open — a
+ * Traccar 4 backend, in practice. Consumers use it to say the live feed is
+ * polling rather than pushing, instead of implying it is merely reconnecting.
+ */
+export function isSocketUnusable(): boolean {
+  return unusable;
 }
