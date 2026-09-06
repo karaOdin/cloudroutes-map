@@ -160,6 +160,37 @@ working the moment the header changes, with no further release.
 Until then those tenants run on the HTTP fallback poll, which works on every
 version.
 
+### Or let React Native hold the socket
+
+The SameSite rule is a *browser* rule. React Native is not a browser, and its
+`WebSocket` takes a third options argument, so native code can send the cookie
+the WebView cannot:
+
+```js
+// React Native host
+const res = await fetch(`${TRACCAR_URL}/session?token=${TOKEN}`);
+const cookie = res.headers.get("set-cookie").split(";")[0];  // JSESSIONID=...
+
+const ws = new WebSocket(TRACCAR_WS_URL, undefined, { headers: { Cookie: cookie } });
+
+ws.onmessage = (e) =>
+  webviewRef.current.postMessage(
+    JSON.stringify({ type: "TRACCAR_MESSAGE", data: e.data })
+  );
+```
+
+The map accepts that message on `window` and on `document` — Android's WebView
+delivers to one, iOS to the other — and feeds it to the same listeners the
+socket would have. The first bridged frame closes any socket the page had
+opened itself, so the two never compete for the same feed. Verified by pushing
+real Traccar frames through the bridge into the running app and watching the
+vehicles update.
+
+This needs no server change and works on every Traccar version, which makes it
+the better answer if the nginx directive is not available. Traccar's own mobile
+clients work this way for the same reason.
+
+
 **Payload shape also differs.** `/gps/positstions` does not always answer with
 an array: when a tenant's backend cannot reach its own Traccar it answers
 `{ "message": "GPS server temporarily unavailable", "positions": [] }`.

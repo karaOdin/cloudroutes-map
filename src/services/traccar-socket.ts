@@ -63,6 +63,7 @@ let lastMessageAt = 0;
 let everOpened = false;
 let unusable = false;
 let connecting = false;
+let bridged = false;
 
 function setConnected(next: boolean) {
   if (connected === next) return;
@@ -89,6 +90,7 @@ function scheduleReconnect() {
 }
 
 function connect() {
+  if (bridged) return;
   if (!Env.TRACCAR_WS_URL || !Env.TRACCAR_TOKEN) return;
 
   if (
@@ -171,12 +173,78 @@ function reconnectImmediately() {
  * so the normal reconnect path can replace it.
  */
 function checkForSilence() {
+  if (bridged) {
+    // Nothing here to close; just stop claiming the feed is live.
+    if (Date.now() - lastMessageAt >= SILENCE_TIMEOUT_MS) setConnected(false);
+
+    return;
+  }
+
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
   if (Date.now() - lastMessageAt < SILENCE_TIMEOUT_MS) return;
 
   setConnected(false);
   socket.close();
+}
+
+/**
+ * Accept the Traccar feed from the React Native host instead of opening it
+ * here.
+ *
+ * Traccar authenticates its socket by session cookie alone and ignores the
+ * Authorization header, and on Traccar 4 that cookie arrives without a
+ * SameSite attribute — Chrome reports `SameSiteUnspecifiedTreatedAsLax` and
+ * refuses to store it, so a WebView can never send it cross-site. React Native
+ * is not a browser and has no such rule: `new WebSocket(url, undefined,
+ * { headers: { Cookie } })` connects fine. So the host can hold the socket and
+ * forward each message in, and the map neither knows nor cares which side of
+ * the bridge it came from.
+ *
+ * Expected shape, matching the app's other bridge messages:
+ *   { type: "TRACCAR_MESSAGE", data: "<the raw Traccar frame>" }
+ */
+function handleBridgedMessage(event: MessageEvent) {
+  const payload =
+    typeof event.data === "string" ? parseJson(event.data) : event.data;
+
+  if (!payload || payload.type !== "TRACCAR_MESSAGE" || payload.data == null) {
+    return;
+  }
+
+  const frame =
+    typeof payload.data === "string"
+      ? payload.data
+      : JSON.stringify(payload.data);
+
+  // First bridged frame wins: stop competing for the same feed.
+  if (!bridged) {
+    bridged = true;
+    unusable = false;
+    clearTimeout(reconnectTimer);
+
+    try {
+      socket?.close();
+    } catch {
+      /* already gone */
+    }
+
+    socket = null;
+  }
+
+  lastMessageAt = Date.now();
+  setConnected(true);
+  messageListeners.forEach((listener) =>
+    listener({ data: frame } as MessageEvent<string>)
+  );
+}
+
+function parseJson(value: string): { type?: string; data?: unknown } | null {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
 }
 
 if (typeof setInterval !== "undefined") {
@@ -191,6 +259,15 @@ if (typeof document !== "undefined") {
 
 if (typeof window !== "undefined") {
   window.addEventListener("online", reconnectImmediately);
+  window.addEventListener("message", handleBridgedMessage);
+}
+
+// Android's WebView delivers host messages to `document`, iOS to `window`.
+if (typeof document !== "undefined") {
+  document.addEventListener(
+    "message",
+    handleBridgedMessage as EventListener
+  );
 }
 
 connect();
@@ -209,6 +286,11 @@ export function subscribeToSocketStatus(listener: StatusListener) {
   return () => {
     statusListeners.delete(listener);
   };
+}
+
+/** True while the feed is being supplied by the React Native host. */
+export function isFeedBridged(): boolean {
+  return bridged;
 }
 
 /** True only while the socket is open and has spoken recently. */
