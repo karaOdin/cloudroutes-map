@@ -30,14 +30,19 @@ async function traccarSession(env: Record<string, string>): Promise<string> {
     // A login is the documented way to open a session and the only reliable
     // one here: GET /session?token= answers 404 on this server and hands back
     // an anonymous cookie, which then fails every authenticated call.
-    if (env.VITE_TRACCAR_USER && env.VITE_TRACCAR_PASSWORD) {
+    // Deliberately NOT the VITE_ prefixed names. Vite bundles anything prefixed
+    // VITE_ into the client, and a Traccar login in the bundle is readable by
+    // anyone who opens the app — these accounts are typically not read-only and
+    // can send commands to trackers. Unprefixed, the proxy can log in while the
+    // browser never sees the credentials at all.
+    const user = env.TRACCAR_USER
+    const password = env.TRACCAR_PASSWORD
+
+    if (user && password) {
       const res = await fetch(`${origin}/api/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          email: env.VITE_TRACCAR_USER,
-          password: env.VITE_TRACCAR_PASSWORD,
-        }),
+        body: new URLSearchParams({ email: user, password }),
       })
 
       if (res.ok) return cookiesFrom(res)
@@ -62,6 +67,15 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
 
   if (origin) {
     console.log(`[traccar proxy] ${origin} -> /traccar   session: ${cookie ? 'ok' : 'FAILED'}`)
+  }
+
+  if (env.VITE_TRACCAR_PASSWORD) {
+    console.warn(
+      '[traccar] VITE_TRACCAR_PASSWORD is set, so the Traccar login will be ' +
+        'compiled into the client bundle and is readable by anyone who opens ' +
+        'the app. Prefer TRACCAR_PASSWORD (no VITE_ prefix) with the proxy, ' +
+        'which keeps it server-side.'
+    )
   }
 
   const traccar: ProxyOptions = {

@@ -155,7 +155,7 @@ client switches to Basic. Left unset, nothing changes and the token is used, so
 tenants on 5+ are untouched.
 
 > ⚠️ A password in a client bundle is readable by anyone who opens the app.
-> Use a dedicated, read-only Traccar account for this, never an administrator.
+> See "Credentials: what must not go in the client" below before using this.
 
 **The WebSocket needs one change on the server.** Traccar 4 authenticates its
 socket by session cookie and nothing else — `?token=` answers 503, and so does
@@ -181,6 +181,46 @@ working the moment the header changes, with no further release.
 
 Until then those tenants run on the HTTP fallback poll, which works on every
 version.
+
+### Credentials: what must not go in the client
+
+**Never set `VITE_TRACCAR_USER` / `VITE_TRACCAR_PASSWORD` in a deployed build.**
+Vite compiles every `VITE_`-prefixed value into the bundle, so a Traccar login
+set that way is readable by anyone who opens the app. Verified: building with
+them present puts the literal username and password in `dist/assets/*.js`.
+
+These are not low-privilege accounts. The Djelfa login checked at the time of
+writing reports:
+
+```
+administrator  false      readonly       false     <- can modify
+deviceReadonly false      limitCommands  false     <- can send commands to trackers
+userLimit      5          deviceLimit    52
+```
+
+`limitCommands: false` means the API can issue device commands, which on many
+tracker models includes cutting the engine. A leaked login is not "someone can
+read bus positions"; it is control of the fleet's hardware.
+
+The same argument applies, less severely, to `TRACCAR_TOKEN`, which is already
+shipped to the client on every tenant.
+
+**Order of preference:**
+
+1. **Proxy Traccar behind your own backend** and send the client nothing. The
+   backend already holds tenant config and already talks to Traccar
+   server-side, so it can expose `/gps/positstions`, `/gps/devices` and a
+   socket without any Traccar credential reaching a browser. This also removes
+   the token exposure that exists today, and makes the Traccar version
+   invisible to the client — v4 and v6 tenants stop differing at all.
+2. **Proxy in the dev server**, which is what `vite.config.ts` does. It reads
+   `TRACCAR_USER` / `TRACCAR_PASSWORD` **without** the `VITE_` prefix, so Vite
+   keeps them server-side and they never enter the bundle. Verified: the build
+   contains neither value.
+3. **Basic auth in the client, as a stopgap only.** If a v4 tenant must work
+   before a proxy exists, create a Traccar user that is `readonly`,
+   `deviceReadonly` and `limitCommands`-limited, with a strong unique password
+   used nowhere else, and treat that password as public.
 
 ### The fix: put Traccar on the app's own origin
 
