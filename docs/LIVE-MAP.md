@@ -30,9 +30,31 @@ Two independent backends:
 | **tenant API** | `<tenant>.routes.devcloud.dz/api` | `/lines`, `/stops`, `/default-map`, `/gps/positstions` |
 | **Traccar** | `<tenant>bus.malimspotter.dz/api` | `/session`, `/devices`, `wss://…/socket` |
 
-Both are configured per tenant in `.env` (`VITE_API_URL`, `VITE_TRACCAR_URL`,
-`VITE_TRACCAR_WS_URL`, `VITE_TRACCAR_TOKEN`), overridable at runtime by
-`window.env` injected by the React Native host.
+### Where configuration comes from
+
+**In production, from your backend — not from `.env`.** The host app fetches
+each tenant's endpoints and token and injects them into the WebView as
+`window.env`, which `src/config/env.ts` reads first:
+
+```ts
+TRACCAR_URL: window?.env?.TRACCAR_URL ?? import.meta.env.VITE_TRACCAR_URL
+```
+
+The `VITE_*` values are the fallback and exist for local development only.
+Nothing in this repo fetches configuration itself.
+
+| key | purpose |
+|---|---|
+| `API_URL` | tenant API — lines, stops, default map, positions |
+| `TRACCAR_URL` | Traccar REST base |
+| `TRACCAR_WS_URL` | Traccar socket; a non-absolute value is treated as a path on the app's own origin |
+| `TRACCAR_TOKEN` | Traccar token auth — works on 5+ |
+| `TRACCAR_USER` / `TRACCAR_PASSWORD` | **only for Traccar 4 tenants**; switches to Basic auth |
+
+So enabling a Traccar 4 tenant is a change to **what your backend returns for
+that tenant**, not a redeploy of this app: add `TRACCAR_USER` and
+`TRACCAR_PASSWORD`, and point `TRACCAR_WS_URL` at a proxy if one exists. The
+client already handles all of it.
 
 ---
 

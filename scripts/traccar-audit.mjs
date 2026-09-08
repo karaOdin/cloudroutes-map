@@ -12,8 +12,16 @@
  *
  * Read-only: one unauthenticated GET and one socket handshake per host.
  *
- *   node scripts/traccar-audit.mjs                      # every .env* in the repo
+ * In production each tenant's endpoints come from your backend and are injected
+ * as `window.env`, not from any file here, so the real list lives there. Feed
+ * it in however you have it:
+ *
  *   node scripts/traccar-audit.mjs https://a.example https://b.example
+ *   node scripts/traccar-audit.mjs < hosts.txt        # one host per line
+ *   curl -s <your-backend>/tenants | jq -r '.[].traccar_url' | node scripts/traccar-audit.mjs
+ *
+ * With no input it falls back to scanning .env* files, which only covers the
+ * tenants you happen to have configured locally.
  *
  * Hosts may be given with or without a trailing /api.
  */
@@ -110,10 +118,35 @@ function handshake(origin, token) {
   });
 }
 
-const targets = process.argv.length > 2 ? fromArgs(process.argv.slice(2)) : fromEnvFiles();
+async function fromStdin() {
+  if (process.stdin.isTTY) return [];
+
+  let body = "";
+
+  for await (const chunk of process.stdin) body += chunk;
+
+  return fromArgs(
+    body
+      .split(/\s+/)
+      .map((l) => l.trim())
+      .filter((l) => /^https?:\/\//i.test(l))
+  );
+}
+
+const piped = await fromStdin();
+const targets =
+  process.argv.length > 2
+    ? fromArgs(process.argv.slice(2))
+    : piped.length > 0
+      ? piped
+      : fromEnvFiles();
 
 if (targets.length === 0) {
-  console.error("No Traccar hosts found. Pass them as arguments, or run from a directory with .env files.");
+  console.error(
+    "No Traccar hosts found. Pass them as arguments, pipe them in one per line,\n" +
+      "or run from a directory with .env files. In production the real list comes\n" +
+      "from your backend, not from this repo."
+  );
   process.exit(1);
 }
 
@@ -134,7 +167,10 @@ for (const t of targets) {
 
   if (!v) verdict = "unreachable — check the URL";
   else if (code === 101) verdict = "OK — browser connects directly";
-  else if (major >= 5) verdict = `handshake ${code} — check the token, not the version`;
+  else if (major >= 5 && !t.token)
+    verdict = `OK on version — ${major}.x takes ?token=, none supplied to prove it`;
+  else if (major >= 5)
+    verdict = `handshake ${code} — the version is fine, check the token`;
   else {
     verdict = "NEEDS a proxy, or SameSite=None on this host";
     needWork += 1;
