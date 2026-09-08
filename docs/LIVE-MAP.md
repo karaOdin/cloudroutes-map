@@ -207,6 +207,55 @@ Nothing changes for tenants without `VITE_TRACCAR_ORIGIN`: no proxy is
 configured and the socket is opened directly, as before. Regression checked
 against M'sila on 6.11 — direct socket, 97 frames, 22 vehicles.
 
+### Deploying on Vercel
+
+Vercel cannot proxy a WebSocket. Its rewrites ignore a `wss://` destination
+outright, and its functions are not a place to park a long-lived upstream
+connection. So the dev proxy in `vite.config.ts` has no Vercel equivalent, and
+the proxy has to live somewhere else.
+
+It does **not** have to be same-origin. WebSockets are not subject to CORS, and
+the only reason a direct connection failed was the cookie — a proxy that holds
+the Traccar session server-side removes the need for the browser to have one at
+all. So any host you control will do, on any origin:
+
+```
+VITE_TRACCAR_WS_URL=wss://djelfa.routes.devcloud.dz/traccar/socket
+VITE_TRACCAR_URL=https://djelfa.routes.devcloud.dz/traccar
+```
+
+with, on that host:
+
+```nginx
+location /traccar/ {
+    proxy_pass https://old.malimspotter.dz/api/;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade    $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host       old.malimspotter.dz;
+    proxy_set_header Cookie     "JSESSIONID=...";
+}
+```
+
+The tenant backend is the natural place: it is already yours, already talks to
+Traccar server-side, and already holds credentials.
+
+**The alternative needs no proxy anywhere.** Add to the Traccar host's nginx:
+
+```nginx
+proxy_cookie_flags ~ secure samesite=none;
+```
+
+Then the browser can keep Traccar's session cookie cross-site and connect
+straight to `wss://old.malimspotter.dz/api/socket` from Vercel, with no proxy
+in the path. The client already opens the session first when a login is
+configured. Proven by injecting exactly that cookie: 46 frames received
+cross-origin.
+
+Either way, `vercel.json` rewrites remain useful for the REST calls, which are
+ordinary HTTP — but they are not needed, since Basic auth already reaches
+Traccar directly from the browser.
+
 ### Or let React Native hold the socket
 
 The SameSite rule is a *browser* rule. React Native is not a browser, and its

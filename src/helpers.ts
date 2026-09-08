@@ -114,10 +114,22 @@ export const traccarClient = axios.create({
 export async function ensureTraccarSession(): Promise<void> {
   if (!usesTraccarBasicAuth()) return;
 
-  await axios.get(`${Env.TRACCAR_URL}/session`, {
-    params: { token: Env.TRACCAR_TOKEN },
-    withCredentials: true,
-  });
+  // A login, not the token. `GET /session?token=` is not reliable on these
+  // servers: it answers 404 and still hands back a JSESSIONID, but an
+  // anonymous one, so every authenticated call afterwards fails with a 401
+  // that points nowhere near the login. `POST /session` with the credentials
+  // returns 200 and a session that actually carries the user.
+  await axios.post(
+    `${Env.TRACCAR_URL}/session`,
+    new URLSearchParams({
+      email: String(Env.TRACCAR_USER),
+      password: String(Env.TRACCAR_PASSWORD),
+    }),
+    {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      withCredentials: true,
+    }
+  );
 }
 
 export async function initTraccarClient() {
