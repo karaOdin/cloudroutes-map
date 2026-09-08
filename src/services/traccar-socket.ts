@@ -72,6 +72,30 @@ function setConnected(next: boolean) {
   statusListeners.forEach((listener) => listener(next));
 }
 
+/**
+ * Where to connect.
+ *
+ * A configured URL that is not absolute is treated as a path on the app's own
+ * origin — a reverse proxy in front of Traccar. That is the one arrangement in
+ * which a browser can use Traccar's session cookie at all: served from the
+ * app's origin the cookie is first-party, so the SameSite rule that otherwise
+ * discards it never applies.
+ */
+function socketUrl(): string {
+  const configured = String(Env.TRACCAR_WS_URL);
+
+  if (/^wss?:\/\//i.test(configured)) {
+    return `${configured}?token=${Env.TRACCAR_TOKEN}`;
+  }
+
+  const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+  const path = configured.startsWith("/") ? configured : `/${configured}`;
+
+  // No token: a proxy authenticates on our behalf, and the cookie rides along
+  // as a first-party cookie for this origin.
+  return `${scheme}://${window.location.host}${path}`;
+}
+
 function scheduleReconnect() {
   clearTimeout(reconnectTimer);
 
@@ -123,9 +147,7 @@ function connect() {
 
 function openSocket() {
   try {
-    socket = new WebSocket(
-      `${Env.TRACCAR_WS_URL}?token=${Env.TRACCAR_TOKEN}`
-    );
+    socket = new WebSocket(socketUrl());
   } catch {
     scheduleReconnect();
     return;

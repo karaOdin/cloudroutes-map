@@ -160,6 +160,53 @@ working the moment the header changes, with no further release.
 Until then those tenants run on the HTTP fallback poll, which works on every
 version.
 
+### The fix: put Traccar on the app's own origin
+
+A reverse proxy is the standard answer and the one that needs no cooperation
+from the Traccar host. Served from the app's own origin, Traccar's session
+cookie is **first-party**, so the SameSite rule never applies and the socket
+connects like any other.
+
+The client already supports it: a `VITE_TRACCAR_WS_URL` that is not an absolute
+`ws://` or `wss://` URL is treated as a path on the current origin, and no
+token is appended — the proxy authenticates instead.
+
+```
+VITE_TRACCAR_ORIGIN=https://old.malimspotter.dz   # switches the dev proxy on
+VITE_TRACCAR_URL=/traccar
+VITE_TRACCAR_WS_URL=/traccar/socket
+```
+
+In development `vite.config.ts` proxies `/traccar` → `<origin>/api` with
+`ws: true`, opening a Traccar session server-side at startup and attaching its
+cookie to every proxied request and upgrade. **Verified end to end: the app
+connected to `ws://localhost/traccar/socket` and received 21 frames, with 25
+vehicles drawn — on Traccar 4.14, with no change to the Traccar server.**
+
+Production needs the same thing in front of wherever the app is served:
+
+```nginx
+location /traccar/ {
+    proxy_pass https://old.malimspotter.dz/api/;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade    $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host       old.malimspotter.dz;
+    # a session opened server-side; see traccarSession() in vite.config.ts
+    proxy_set_header Cookie     "JSESSIONID=...";
+}
+```
+
+The session is opened with `POST /api/session` and form-encoded
+`email` / `password`. `GET /api/session?token=` is not reliable here — it
+answers 404 on this server and hands back an *anonymous* cookie, which then
+fails every authenticated call. That is worth knowing: it fails quietly, as a
+401 later rather than an error at login.
+
+Nothing changes for tenants without `VITE_TRACCAR_ORIGIN`: no proxy is
+configured and the socket is opened directly, as before. Regression checked
+against M'sila on 6.11 — direct socket, 97 frames, 22 vehicles.
+
 ### Or let React Native hold the socket
 
 The SameSite rule is a *browser* rule. React Native is not a browser, and its
@@ -186,9 +233,10 @@ opened itself, so the two never compete for the same feed. Verified by pushing
 real Traccar frames through the bridge into the running app and watching the
 vehicles update.
 
-This needs no server change and works on every Traccar version, which makes it
-the better answer if the nginx directive is not available. Traccar's own mobile
-clients work this way for the same reason.
+This also needs no change to the Traccar host, and works on every version.
+Traccar's own mobile clients connect this way for the same reason. Prefer the
+proxy above for a web deployment; prefer this where the host app already holds
+a socket.
 
 
 **Payload shape also differs.** `/gps/positstions` does not always answer with
