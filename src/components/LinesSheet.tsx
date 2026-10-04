@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import Modal from "react-modal";
 import { useMap } from "react-leaflet";
 import { useTranslation } from "react-i18next";
-import { latLng, latLngBounds } from "leaflet";
+import { latLng, latLngBounds, point } from "leaflet";
 import { QUERY_KEYS } from "@cloudroutes/query";
 import { useLines, useStops } from "@cloudroutes/query/lines";
 import { Line } from "@cloudroutes/core/lines";
@@ -160,6 +160,7 @@ export function LinesSheet({
   const highlight = useHighlightStore((state) => state.highlight);
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [activeStop, setActiveStop] = useState<number | null>(null);
   const lineColours = useLineColours();
 
   const { data: lines } = useLines({ queryKey: [QUERY_KEYS.LINES] });
@@ -228,18 +229,34 @@ export function LinesSheet({
     // Mark it before flying: arriving at a screenful of identical dots with no
     // indication of which one was asked for is the whole problem here.
     highlight(stop.id);
-    map.flyTo([stop.lat, stop.lng], Math.max(map.getZoom(), 16));
-    onClose();
+
+    const zoom = Math.max(map.getZoom(), 16);
+    const size = map.getSize();
+    const drawerTop =
+      document.querySelector(".lines-drawer")?.getBoundingClientRect().top ??
+      size.y;
+
+    // The drawer stays open, so centring the map would hide the stop behind
+    // it. Place it in the middle of whatever strip is still visible instead.
+    const wanted = point(size.x / 2, Math.max(drawerTop, 120) / 2);
+    const centre = map
+      .project([stop.lat, stop.lng], zoom)
+      .add(size.divideBy(2).subtract(wanted));
+
+    map.flyTo(map.unproject(centre, zoom), zoom);
   };
 
   return (
     <Modal
       isOpen={isOpen}
       onRequestClose={onClose}
-      className="ReactModal__Content"
-      overlayClassName="ReactModal__Overlay"
+      className="ReactModal__Content lines-drawer"
+      overlayClassName="ReactModal__Overlay lines-drawer__overlay"
       closeTimeoutMS={300}
       contentLabel={t("lines_sheet.title")}
+      /* A drawer, not a modal: the map behind it is the thing being talked
+         about, so it stays visible and usable while this is open. */
+      shouldCloseOnOverlayClick={false}
     >
       <div className={i18n.language === "ar" ? "rtl" : ""}>
         <header className="lines-sheet__header">
@@ -325,7 +342,11 @@ export function LinesSheet({
                     line={line}
                     servedBy={servedBy}
                     onShowOnMap={() => showOnMap(line)}
-                    onGoToStop={goToStop}
+                    activeStop={activeStop}
+                    onGoToStop={(stop) => {
+                      setActiveStop(stop.id);
+                      goToStop(stop);
+                    }}
                   />
                 )}
               </section>
@@ -346,15 +367,21 @@ export function LinesSheet({
 function LineDetail({
   line,
   servedBy,
+  activeStop,
   onShowOnMap,
   onGoToStop,
 }: {
   line: SheetLine;
   servedBy: Map<number, Array<{ name: string; colour: string }>>;
+  activeStop: number | null;
   onShowOnMap: () => void;
   onGoToStop: (stop: SheetStop) => void;
 }) {
   const { t } = useTranslation();
+  // Which end the line is read from. Nothing in the data says which direction
+  // is "outbound", so the rider decides — and the one they want is as likely
+  // to be either.
+  const [reversed, setReversed] = useState(false);
 
   const { data: byRoad, isFetching } = useQuery({
     queryKey: ["stop-order", line.id],
@@ -367,13 +394,23 @@ function LineDetail({
     retry: false,
   });
 
-  const stops = useMemo(
-    () =>
+  const stops = useMemo(() => {
+    const resolved =
       line.ordered || !byRoad
         ? line.stops
-        : byRoad.map((entry) => ({ ...entry.stop, along: entry.along })),
-    [line.ordered, line.stops, byRoad]
-  );
+        : byRoad.map((entry) => ({ ...entry.stop, along: entry.along }));
+
+    if (!reversed) return resolved;
+
+    // Distances are measured from the start, so reading from the other end
+    // means measuring from it too, or every number would be wrong.
+    const total = resolved[resolved.length - 1]?.along ?? 0;
+
+    return [...resolved].reverse().map((stop) => ({
+      ...stop,
+      along: Number.isFinite(stop.along) ? total - stop.along : stop.along,
+    }));
+  }, [line.ordered, line.stops, byRoad, reversed]);
 
   // A distance is only shown where it means something: along the drawn route,
   // or along the road the router found. Never against an order we are holding
@@ -382,7 +419,8 @@ function LineDetail({
 
   return (
     <div className="line-card__detail">
-      <button type="button" className="line-card__show" onClick={onShowOnMap}>
+      <div className="line-card__actions">
+        <button type="button" className="line-card__show" onClick={onShowOnMap}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path
             d="M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11Z"
@@ -392,8 +430,27 @@ function LineDetail({
           />
           <circle cx="12" cy="10" r="2.4" stroke="currentColor" strokeWidth="1.9" />
         </svg>
-        {t("lines_sheet.show_on_map")}
-      </button>
+          {t("lines_sheet.show_on_map")}
+        </button>
+
+        <button
+          type="button"
+          className="line-card__reverse"
+          onClick={() => setReversed((was) => !was)}
+          aria-pressed={reversed}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M7 4 3 8l4 4M3 8h12a5 5 0 0 1 0 10h-2"
+              stroke="currentColor"
+              strokeWidth="1.9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          {t("lines_sheet.reverse")}
+        </button>
+      </div>
 
       {isFetching && (
         <p className="line-card__working">{t("lines_sheet.working_out_order")}</p>
@@ -416,7 +473,11 @@ function LineDetail({
             <li key={stop.id} className="stop-list__item">
               <button
                 type="button"
-                className="stop-list__row"
+                className={
+                  "stop-list__row" +
+                  (activeStop === stop.id ? " is-active" : "")
+                }
+                aria-current={activeStop === stop.id ? "true" : undefined}
                 onClick={() => onGoToStop(stop)}
               >
                 <span

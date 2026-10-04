@@ -123,6 +123,7 @@
         "stops_count": "{{count}} stops",
         "no_stops": "No stops listed",
         "show_on_map": "Show on map",
-        "working_out_order": "Working out the stop order…"
+        "working_out_order": "Working out the stop order…",
+        "reverse": "Reverse"
     }
 }

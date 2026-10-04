@@ -123,6 +123,7 @@
         "stops_count": "{{count}} محطة",
         "no_stops": "لا توجد محطات",
         "show_on_map": "عرض على الخريطة",
-        "working_out_order": "جارٍ تحديد ترتيب المحطات…"
+        "working_out_order": "جارٍ تحديد ترتيب المحطات…",
+        "reverse": "عكس الاتجاه"
     }
 }

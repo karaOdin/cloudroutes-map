@@ -3467,6 +3467,83 @@ body:has(.route-results-wrapper) .leaflet-popup {
   top: calc(140px + var(--safe-top)) !important;
 }
 
+/* Lines & stops as a drawer rather than a modal.
+   The map behind it is the thing being talked about, so it is neither dimmed
+   nor blocked: the overlay passes taps through and only the panel itself takes
+   them. The panel is also capped shorter than a normal sheet, so there is a
+   strip of map left to fly a chosen stop into. */
+.ReactModal__Overlay.lines-drawer__overlay {
+  background-color: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  pointer-events: none;
+}
+
+.ReactModal__Content.lines-drawer {
+  pointer-events: auto;
+  max-height: min(58dvh, 560px);
+  box-shadow: 0 -10px 34px rgba(8, 47, 73, 0.26);
+}
+
+.line-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.line-card__reverse {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.line-card__reverse:hover {
+  background: var(--surface-muted);
+}
+
+.line-card__reverse:active {
+  transform: scale(0.96);
+}
+
+/* Pressed means the list is being read from the other end, which is a state
+   worth seeing at a glance. */
+.line-card__reverse[aria-pressed="true"] {
+  background: var(--brand-50);
+  border-color: var(--brand-300);
+  color: var(--brand-700);
+}
+
+/* The stop currently being shown on the map. The drawer stays open, so the row
+   has to carry which one that is — otherwise tapping through a line loses
+   track of where you are. */
+.stop-list__row.is-active {
+  background: var(--brand-50);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--brand-200);
+}
+
+.stop-list__row.is-active .stop-list__name {
+  font-weight: 700;
+  color: var(--brand-700);
+}
+
+.leaflet-container[data-chrome="dark"] ~ * .stop-list__row.is-active,
+.stop-list__row.is-active:hover {
+  background: var(--brand-50);
+}
+
 /* Calling out a stop.
    Flying to a stop moves the map but says nothing about which of the dots now
    on screen was the one asked for. A ring expands from it and its name sits
