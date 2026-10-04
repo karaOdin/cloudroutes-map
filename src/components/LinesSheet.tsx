@@ -440,8 +440,10 @@ function LineDetail({
           aria-pressed={reversed}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            {/* Two arrows pointing opposite ways: the list can be read from
+                either end, which is what the button does. */}
             <path
-              d="M7 4 3 8l4 4M3 8h12a5 5 0 0 1 0 10h-2"
+              d="M8 20V4m0 0L5 7m3-3 3 3M16 4v16m0 0 3-3m-3 3-3-3"
               stroke="currentColor"
               strokeWidth="1.9"
               strokeLinecap="round"
