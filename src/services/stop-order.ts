@@ -22,8 +22,15 @@ import { Env } from "../config/env.ts";
 
 export type OrderedStop<T> = { stop: T; along: number };
 
-/** The public demo server has no SLA; a tenant can point at its own. */
-const DEFAULT_OSRM = "https://router.project-osrm.org";
+/**
+ * Our own router. The public demo server was the earlier default and is
+ * explicitly not for production use; this one answers in about 350ms, snaps
+ * Algerian stops to within a few tens of metres, and sends
+ * `access-control-allow-origin: *` so the browser can call it directly.
+ *
+ * `OSRM_URL` still overrides it, for a tenant pointed somewhere else.
+ */
+const DEFAULT_OSRM = "https://osrm-car.devcloud.dz";
 const TIMEOUT_MS = 12_000;
 /** OSRM's trip service is a travelling-salesman solve and gets slow past this. */
 const MAX_STOPS = 60;
@@ -44,7 +51,9 @@ export async function orderStopsByRoad<T extends { lat: number; lng: number }>(
 ): Promise<OrderedStop<T>[] | null> {
   if (stops.length < 3 || stops.length > MAX_STOPS) return null;
 
-  const base = Env.OSRM_URL || DEFAULT_OSRM;
+  // Trailing slashes are easy to leave in a configured value and would build
+  // a double-slashed path.
+  const base = (Env.OSRM_URL || DEFAULT_OSRM).replace(/\/+$/, "");
   const coordinates = stops.map((s) => `${s.lng},${s.lat}`).join(";");
   const url =
     `${base}/trip/v1/driving/${coordinates}` +
