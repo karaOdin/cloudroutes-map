@@ -9,6 +9,7 @@ declare global {
       TRACCAR_TOKEN?: string;
       TRACCAR_USER?: string;
       TRACCAR_PASSWORD?: string;
+      OSRM_URL?: string;
       LINE_IS_DISABLED?: boolean;
     };
   }
@@ -36,4 +37,10 @@ export const Env = {
   TRACCAR_USER: window?.env?.TRACCAR_USER ?? import.meta.env.VITE_TRACCAR_USER,
   TRACCAR_PASSWORD:
     window?.env?.TRACCAR_PASSWORD ?? import.meta.env.VITE_TRACCAR_PASSWORD,
+  /**
+   * Routing service used to recover a stop order the line geometry cannot
+   * give. Defaults to OSRM's public demo server, which carries no SLA — a
+   * tenant running its own should point this at it.
+   */
+  OSRM_URL: window?.env?.OSRM_URL ?? import.meta.env.VITE_OSRM_URL,
 } as const;

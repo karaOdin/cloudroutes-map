@@ -60,6 +60,7 @@ declare global {
       TRACCAR_TOKEN?: string;
       TRACCAR_USER?: string;
       TRACCAR_PASSWORD?: string;
+      OSRM_URL?: string;
       LINE_IS_DISABLED?: boolean;
     };
     language?: string;

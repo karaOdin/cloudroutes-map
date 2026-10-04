@@ -123,6 +123,6 @@
         "stops_count": "{{count}} arrêts",
         "no_stops": "Aucun arrêt listé",
         "show_on_map": "Voir sur la carte",
-        "order_unknown": "Ordre des arrêts non confirmé — ces arrêts ne suivent pas le tracé de cette ligne."
+        "working_out_order": "Calcul de l'ordre des arrêts…"
     }
 }

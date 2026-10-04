@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Modal from "react-modal";
 import { useMap } from "react-leaflet";
 import { useTranslation } from "react-i18next";
@@ -7,6 +8,7 @@ import { QUERY_KEYS } from "@cloudroutes/query";
 import { useLines, useStops } from "@cloudroutes/query/lines";
 import { Line } from "@cloudroutes/core/lines";
 import { distanceAlong } from "../services/route-path.ts";
+import { orderStopsByRoad } from "../services/stop-order.ts";
 import { useFocusStore } from "../hooks/use-focus-store.ts";
 import {
   FALLBACK_LINE_COLOUR,
@@ -314,85 +316,12 @@ export function LinesSheet({
                 </button>
 
                 {open && (
-                  <div className="line-card__detail">
-                    <button
-                      type="button"
-                      className="line-card__show"
-                      onClick={() => showOnMap(line)}
-                    >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path d="M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11Z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
-                        <circle cx="12" cy="10" r="2.4" stroke="currentColor" strokeWidth="1.9" />
-                      </svg>
-                      {t("lines_sheet.show_on_map")}
-                    </button>
-
-                    {!line.ordered && (
-                      <p className="line-card__unordered">
-                        {t("lines_sheet.order_unknown")}
-                      </p>
-                    )}
-
-                    <ol
-                      className="stop-list"
-                      style={{ "--line-colour": line.colour } as React.CSSProperties}
-                    >
-                      {line.stops.map((stop, index) => {
-                        const others = (servedBy.get(stop.id) ?? []).filter(
-                          (served) => served.name !== line.name
-                        );
-                        // The ends of a line are landmarks: they are how a
-                        // rider decides whether this is the direction they
-                        // want, so they are drawn as stops of a different kind.
-                        const terminus =
-                          index === 0 || index === line.stops.length - 1;
-
-                        return (
-                          <li key={stop.id} className="stop-list__item">
-                            <button
-                              type="button"
-                              className="stop-list__row"
-                              onClick={() => goToStop(stop)}
-                            >
-                              <span
-                                className={
-                                  "stop-list__dot" +
-                                  (terminus ? " is-terminus" : "") +
-                                  (others.length > 0 ? " is-interchange" : "")
-                                }
-                                aria-hidden="true"
-                              />
-                              <span className="stop-list__text">
-                                <span className="stop-list__name">{stop.name}</span>
-                                {others.length > 0 && (
-                                  <span className="stop-list__changes">
-                                    {others.slice(0, 4).map((served) => (
-                                      <span
-                                        key={served.name}
-                                        className="stop-list__chip"
-                                        style={{ background: served.colour }}
-                                        title={served.name}
-                                      >
-                                        {served.name}
-                                      </span>
-                                    ))}
-                                    {others.length > 4 && (
-                                      <span className="stop-list__chip stop-list__chip--more">
-                                        +{others.length - 4}
-                                      </span>
-                                    )}
-                                  </span>
-                                )}
-                              </span>
-                              {Number.isFinite(stop.along) && (
-                                <span className="stop-list__along">{km(stop.along)}</span>
-                              )}
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ol>
-                  </div>
+                  <LineDetail
+                    line={line}
+                    servedBy={servedBy}
+                    onShowOnMap={() => showOnMap(line)}
+                    onGoToStop={goToStop}
+                  />
                 )}
               </section>
             );
@@ -400,5 +329,129 @@ export function LinesSheet({
         </div>
       </div>
     </Modal>
+  );
+}
+
+/**
+ * The stops of one line.
+ *
+ * Split out so the road-order lookup is mounted — and requested — only for the
+ * line actually open, and only when the geometry could not answer.
+ */
+function LineDetail({
+  line,
+  servedBy,
+  onShowOnMap,
+  onGoToStop,
+}: {
+  line: SheetLine;
+  servedBy: Map<number, Array<{ name: string; colour: string }>>;
+  onShowOnMap: () => void;
+  onGoToStop: (stop: SheetStop) => void;
+}) {
+  const { t } = useTranslation();
+
+  const { data: byRoad, isFetching } = useQuery({
+    queryKey: ["stop-order", line.id],
+    queryFn: () => orderStopsByRoad(line.stops),
+    // Only where projecting onto the drawn route failed. Where it held, that
+    // route is what the operator says the bus does, and shortest is not the
+    // same as correct — a real line is allowed to double back.
+    enabled: !line.ordered && line.stops.length >= 3,
+    staleTime: Infinity,
+    retry: false,
+  });
+
+  const stops = useMemo(
+    () =>
+      line.ordered || !byRoad
+        ? line.stops
+        : byRoad.map((entry) => ({ ...entry.stop, along: entry.along })),
+    [line.ordered, line.stops, byRoad]
+  );
+
+  // A distance is only shown where it means something: along the drawn route,
+  // or along the road the router found. Never against an order we are holding
+  // only because nothing better was available.
+  const showDistances = line.ordered || !!byRoad;
+
+  return (
+    <div className="line-card__detail">
+      <button type="button" className="line-card__show" onClick={onShowOnMap}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11Z"
+            stroke="currentColor"
+            strokeWidth="1.9"
+            strokeLinejoin="round"
+          />
+          <circle cx="12" cy="10" r="2.4" stroke="currentColor" strokeWidth="1.9" />
+        </svg>
+        {t("lines_sheet.show_on_map")}
+      </button>
+
+      {isFetching && (
+        <p className="line-card__working">{t("lines_sheet.working_out_order")}</p>
+      )}
+
+      <ol
+        className="stop-list"
+        style={{ "--line-colour": line.colour } as React.CSSProperties}
+      >
+        {stops.map((stop, index) => {
+          const others = (servedBy.get(stop.id) ?? []).filter(
+            (served) => served.name !== line.name
+          );
+          // The ends of a line are landmarks: they are how a rider decides
+          // whether this is the direction they want, so they are drawn as
+          // stops of a different kind.
+          const terminus = index === 0 || index === stops.length - 1;
+
+          return (
+            <li key={stop.id} className="stop-list__item">
+              <button
+                type="button"
+                className="stop-list__row"
+                onClick={() => onGoToStop(stop)}
+              >
+                <span
+                  className={
+                    "stop-list__dot" +
+                    (terminus ? " is-terminus" : "") +
+                    (others.length > 0 ? " is-interchange" : "")
+                  }
+                  aria-hidden="true"
+                />
+                <span className="stop-list__text">
+                  <span className="stop-list__name">{stop.name}</span>
+                  {others.length > 0 && (
+                    <span className="stop-list__changes">
+                      {others.slice(0, 4).map((served) => (
+                        <span
+                          key={served.name}
+                          className="stop-list__chip"
+                          style={{ background: served.colour }}
+                          title={served.name}
+                        >
+                          {served.name}
+                        </span>
+                      ))}
+                      {others.length > 4 && (
+                        <span className="stop-list__chip stop-list__chip--more">
+                          +{others.length - 4}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </span>
+                {showDistances && Number.isFinite(stop.along) && (
+                  <span className="stop-list__along">{km(stop.along)}</span>
+                )}
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }

@@ -123,6 +123,6 @@
         "stops_count": "{{count}} stops",
         "no_stops": "No stops listed",
         "show_on_map": "Show on map",
-        "order_unknown": "Stop order not confirmed — these stops do not follow this line's drawn route."
+        "working_out_order": "Working out the stop order…"
     }
 }
