@@ -8,6 +8,8 @@ import { useFocusedDeviceIds } from "../../hooks/use-focused-device-ids.ts";
 import { useDevicePaths } from "../../hooks/use-device-paths.ts";
 import { useMapZoom } from "../../hooks/use-map-zoom.ts";
 import { labelledVehicles } from "./bus-labels.ts";
+import { useSpiderfy } from "../../hooks/use-spiderfy.ts";
+import { useFollowStore } from "../../hooks/use-follow-store.ts";
 import { useLines } from "@cloudroutes/query/lines";
 import { Line } from "@cloudroutes/core/lines";
 import { useFilterStore } from "../../hooks/use-filter-store.ts";
@@ -20,6 +22,8 @@ export function LineOnlyDevicePositionMarkers() {
   const focusedDeviceIds = useFocusedDeviceIds();
   const devicePaths = useDevicePaths();
   const zoom = useMapZoom();
+  const spiderfy = useSpiderfy();
+  const toggleFollow = useFollowStore((state) => state.toggleFollow);
   const { data: lines } = useLines();
 
   useLivePositions();
@@ -55,6 +59,14 @@ export function LineOnlyDevicePositionMarkers() {
     zoom
   );
 
+  spiderfy.observe(
+    drawn.map(({ device, position }) => ({
+      id: device.id,
+      lat: position.latitude,
+      lng: position.longitude,
+    }))
+  );
+
   return drawn.map(({ device, position, freshness }) => (
     <BusMarker
       key={device.id}
@@ -66,6 +78,14 @@ export function LineOnlyDevicePositionMarkers() {
       path={devicePaths.byDevice.get(device.uniqueId)}
       routes={devicePaths.all}
       labelled={labelled.has(device.id)}
+      spider={spiderfy.offsets.get(device.id)}
+      onTap={(id) => {
+        const action = spiderfy.handleTap(id);
+
+        if (action === "select") toggleFollow(id);
+
+        return action;
+      }}
     />
   ));
 }

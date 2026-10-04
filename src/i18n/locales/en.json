@@ -78,7 +78,8 @@
         "my_location": "My Location",
         "zoom_in": "Zoom in",
         "zoom_out": "Zoom out",
-        "language": "Language"
+        "language": "Language",
+        "fit_network": "Show whole network"
     },
     "nearby": {
         "title": "Nearby Stops",
@@ -110,5 +111,9 @@
         "dark": "Dark",
         "satellite": "Satellite",
         "terrain": "Terrain"
+    },
+    "follow": {
+        "following": "Following bus",
+        "stop": "Stop following"
     }
 }

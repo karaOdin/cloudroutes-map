@@ -3467,6 +3467,208 @@ body:has(.route-results-wrapper) .leaflet-popup {
   top: calc(140px + var(--safe-top)) !important;
 }
 
+/* Fanned-out vehicles.
+   The translation is on the inner container, never on the marker, so Leaflet
+   still holds the vehicle at the coordinate it reported — the icon steps aside
+   to be tappable and the leader line points back to where it really is. */
+.bus-icon.is-spidered .bus-icon-container {
+  transform: translate(var(--spider-x, 0), var(--spider-y, 0));
+  transition: transform var(--dur) var(--ease-out);
+}
+
+/* The line back to the true position: anchored at the vehicle's real point,
+   rotated to face the icon, and exactly as long as the offset. */
+.bus-icon.is-spidered .bus-icon-container::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 27.5px;
+  width: var(--spider-len, 0);
+  height: 2px;
+  border-radius: 1px;
+  /* Cased in white like the stop dots, for the same reason: a hairline in a
+     single colour disappears into a busy basemap, and this line is the only
+     thing saying where the vehicle actually is. */
+  background: currentColor;
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.95);
+  transform: translate(calc(-1 * var(--spider-x, 0)), calc(-1 * var(--spider-y, 0)))
+    rotate(var(--spider-angle, 0deg));
+  transform-origin: 0 50%;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* The anchor dot: without it the line ends in mid-air and the true position is
+   left to inference. */
+.bus-icon.is-spidered .bus-icon-container::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 27.5px;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95);
+  transform: translate(calc(-1 * var(--spider-x, 0)), calc(-1 * var(--spider-y, 0)));
+  pointer-events: none;
+  z-index: -1;
+}
+
+.leaflet-container[data-chrome="dark"] .bus-icon.is-spidered .bus-icon-container::after,
+.leaflet-container[data-chrome="dark"] .bus-icon.is-spidered .bus-icon-container::before {
+  box-shadow: 0 0 0 2px rgba(17, 24, 31, 0.9);
+}
+
+/* Following.
+   The map moves by itself while this is on, which is alarming if you did not
+   realise you asked for it — so it says so, and the dot keeps a slow pulse to
+   show the tracking is live rather than stuck. */
+.follow-banner__pulse {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+  animation: follow-pulse 1.8s var(--ease) infinite;
+}
+
+@keyframes follow-pulse {
+  to {
+    box-shadow: 0 0 0 9px rgba(16, 185, 129, 0);
+  }
+}
+
+/* Leaflet's scale bar, brought in line with the rest of the chrome. */
+.leaflet-control-scale {
+  margin: 0 0 10px 12px !important;
+}
+
+.leaflet-control-scale-line {
+  padding: 2px 6px;
+  border: 1px solid var(--border) !important;
+  border-top: none !important;
+  border-radius: 0 0 var(--radius-xs) var(--radius-xs);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.leaflet-container[data-chrome="dark"] .leaflet-control-scale-line {
+  background: rgba(17, 24, 31, 0.8);
+  color: var(--text-muted);
+}
+
+/* The base attribution rule uses !important throughout, so the dark override
+   has to match it rather than rely on specificity alone. */
+.leaflet-container[data-chrome="dark"] .leaflet-control-attribution {
+  background: rgba(17, 24, 31, 0.82) !important;
+  color: var(--text-muted) !important;
+}
+
+.leaflet-container[data-chrome="dark"] .leaflet-control-attribution a {
+  color: var(--brand-300) !important;
+}
+
+/* Dark chrome, for basemaps that are dark under it.
+   Scoped to the map container and keyed off the chosen style rather than the
+   OS preference — what matters is what sits behind the controls. Only the
+   surface and text tokens are redefined; the brand ramp, line colours and
+   marker treatments are deliberately untouched so nothing shifts meaning. */
+.leaflet-container[data-chrome="dark"] {
+  --surface: #11181f;
+  --surface-muted: #1b242d;
+  --surface-sunken: #243039;
+  --border: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.26);
+  --text: #e8eef4;
+  --text-muted: #a7b4c2;
+  --text-subtle: #7b8795;
+}
+
+.leaflet-container[data-chrome="dark"] .control-button,
+.leaflet-container[data-chrome="dark"] .zoom-controls,
+.leaflet-container[data-chrome="dark"] .map-style__panel,
+.leaflet-container[data-chrome="dark"] .focus-banner {
+  background: rgba(17, 24, 31, 0.92);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.leaflet-container[data-chrome="dark"] .leaflet-popup-content-wrapper,
+.leaflet-container[data-chrome="dark"] .leaflet-popup-tip {
+  background: rgba(17, 24, 31, 0.96);
+  color: var(--text);
+}
+
+
+/* The white halo that keeps a stop legible on a pale basemap does the opposite
+   on a dark one, so it inverts with the chrome. */
+.leaflet-container[data-chrome="dark"] .bus-stop-marker__dot {
+  box-shadow: 0 0 0 1.5px var(--stop-ring, var(--brand-900)),
+    0 0 0 3px rgba(17, 24, 31, 0.9), 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.leaflet-container[data-chrome="dark"] .bus-stop-marker__dot--interchange {
+  background: #11181f;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85), 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Press feedback. Controls should acknowledge a tap the way a native one does;
+   without it a touch feels like it may not have registered. */
+.control-button:active,
+.zoom-button:active,
+.map-style__option:active .map-style__swatch,
+.focus-banner__clear:active {
+  transform: scale(0.93);
+}
+
+.control-button,
+.zoom-button,
+.focus-banner__clear {
+  transition: transform var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+/* Until the first tiles paint, the map is a flat grey void. A slow sweep says
+   loading rather than broken. */
+#map::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(
+    100deg,
+    var(--surface-muted) 30%,
+    var(--surface-sunken) 50%,
+    var(--surface-muted) 70%
+  );
+  background-size: 300% 100%;
+  animation: map-skeleton 1.6s var(--ease) infinite;
+  pointer-events: none;
+}
+
+/* Leaflet adds this class once a tile layer has finished loading. */
+#map.tiles-ready::before {
+  content: none;
+}
+
+@keyframes map-skeleton {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -150% 0;
+  }
+}
+
 /* Map style picker.
    A map control rather than a field in the filters sheet, which is where a
    rider looks for it. Each option previews the style over the area actually on

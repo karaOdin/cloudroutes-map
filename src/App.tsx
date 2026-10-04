@@ -4,6 +4,7 @@ import "./App.css";
 import "./i18n/index.ts";
 import {
   MapContainer,
+  ScaleControl,
   Marker,
   TileLayer,
   useMap,
@@ -19,9 +20,14 @@ import { BusStopsMarkers } from "./components/BusStopsMarkers.tsx";
 import {
   FocusBanner,
   FocusController,
+  FollowBanner,
 } from "./components/FocusLayer.tsx";
 import { MarkerMotionGuard } from "./components/MarkerMotionGuard.tsx";
 import { MapStyleControl } from "./components/MapStyleControl.tsx";
+import {
+  FitNetworkControl,
+  TileReadyFlag,
+} from "./components/MapExtras.tsx";
 import Modal from "react-modal";
 import { useEffect, useRef, useState } from "react";
 import { Filters } from "./components/Filters.tsx";
@@ -350,6 +356,29 @@ function LoadingScreen() {
 }
 
 // Zoom Control Component
+/**
+ * Marks the map container with the basemap's intended chrome theme.
+ *
+ * Not `prefers-color-scheme`: the right answer depends on what is under the
+ * controls, not on the OS. White buttons and popups are unreadable over
+ * satellite imagery or a dark canvas whatever the system preference says.
+ */
+function MapChrome({ theme }: { theme?: "dark" }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const container = map.getContainer();
+
+    container.dataset.chrome = theme ?? "light";
+
+    return () => {
+      delete container.dataset.chrome;
+    };
+  }, [map, theme]);
+
+  return null;
+}
+
 function ZoomControl() {
   const map = useMap();
   const { t } = useTranslation();
@@ -710,6 +739,9 @@ function App() {
         url={leafletProvider.url}
         attribution={leafletProvider.attribution}
       />
+      <MapChrome theme={leafletProvider.theme} />
+      <TileReadyFlag />
+      <ScaleControl position="bottomleft" imperial={false} />
       <FocusController />
       <MarkerMotionGuard />
       <DevicePositionMarkers />
@@ -731,6 +763,7 @@ function App() {
 
       <ZoomControl />
       <FocusBanner />
+      <FollowBanner />
 
       {/* Map Controls - position lower when in WebView to avoid search bar */}
       <div
@@ -759,6 +792,7 @@ function App() {
         </button>
 
         <MapStyleControl />
+        <FitNetworkControl />
 
         {!!window.env && (
           <button

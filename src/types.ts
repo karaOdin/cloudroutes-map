@@ -85,6 +85,12 @@ export type LeafletProvider = {
   /** i18n key for the label shown in the style picker. */
   labelKey: string;
   /**
+   * Whether map chrome should go dark over this basemap. Driven by the chosen
+   * style rather than the OS colour scheme: white controls over satellite
+   * imagery or a dark canvas are unreadable whatever the system preference is.
+   */
+  theme?: "dark";
+  /**
    * Required by every provider here. OpenStreetMap's licence and Esri's terms
    * both oblige us to show it, and the map was rendering with none at all.
    */

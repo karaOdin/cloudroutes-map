@@ -78,7 +78,8 @@
         "my_location": "Ma position",
         "zoom_in": "Zoomer",
         "zoom_out": "Dézoomer",
-        "language": "Langue"
+        "language": "Langue",
+        "fit_network": "Voir tout le réseau"
     },
     "nearby": {
         "title": "Arrêts à proximité",
@@ -110,5 +111,9 @@
         "dark": "Sombre",
         "satellite": "Satellite",
         "terrain": "Relief"
+    },
+    "follow": {
+        "following": "Suivi du bus",
+        "stop": "Arrêter le suivi"
     }
 }

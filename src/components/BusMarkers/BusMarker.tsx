@@ -6,7 +6,7 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { Marker, Popup } from "react-leaflet";
+import { Marker, Popup, useMap } from "react-leaflet";
 import {
   LatLng,
   latLng,
@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import { busIcon } from "../../icons.ts";
 import { BusFreshness, capitalize, formatAge } from "../../helpers.ts";
 import { tidyVehicleName } from "./bus-labels.ts";
+import { useFollowStore } from "../../hooks/use-follow-store.ts";
 import {
   MeasuredPath,
   chooseRoute,
@@ -26,7 +27,7 @@ import {
 } from "../../services/route-path.ts";
 
 type BusMarkerProps = {
-  device: { name: string; category: string | null };
+  device: { id?: number; name: string; category: string | null };
   position: {
     latitude: number;
     longitude: number;
@@ -47,6 +48,14 @@ type BusMarkerProps = {
   routes?: LatLng[][];
   /** True when this vehicle has been allocated room to show its name. */
   labelled?: boolean;
+  /** Screen-space nudge applied when an overlapping group has been opened. */
+  spider?: { dx: number; dy: number };
+  /**
+   * What a tap means here — the layer decides, since it knows about pile-ups.
+   * Answering "opened" means the tap fanned a group out rather than choosing
+   * this vehicle.
+   */
+  onTap?: (deviceId: number) => "opened" | "select";
 };
 
 /**
@@ -79,8 +88,13 @@ function BusMarkerComponent({
   path,
   routes = EMPTY_ROUTES,
   labelled = false,
+  spider,
+  onTap,
 }: BusMarkerProps) {
   const { t } = useTranslation();
+  const map = useMap();
+  const followed = useFollowStore((state) => state.followed);
+  const toggleFollow = useFollowStore((state) => state.toggleFollow);
   const { latitude, longitude, course } = position;
   const fixAt = Date.parse(position.fixTime ?? position.deviceTime ?? "");
   const markerRef = useRef<LeafletMarker>(null);
@@ -279,6 +293,17 @@ function BusMarkerComponent({
     return () => cancelAnimationFrame(frame);
   }, [latitude, longitude, path, routes, turnTo]);
 
+  // Keep a followed vehicle in view. `panTo` rather than `setView`, so the
+  // user's own zoom is left alone — following should not fight them.
+  const isFollowed = device.id !== undefined && followed === device.id;
+
+  useEffect(() => {
+    if (!isFollowed) return;
+
+    map.panTo([latitude, longitude], { animate: true });
+  }, [isFollowed, latitude, longitude, map]);
+
+
   // The name, when the layer has decided there is room for it. Written as a
   // custom property that CSS `content` reads, so the icon markup stays shared
   // and cached across every vehicle and nothing needs re-rendering to show or
@@ -291,6 +316,36 @@ function BusMarkerComponent({
     element.style.setProperty("--bus-label", JSON.stringify(busName));
     element.classList.toggle("is-labelled", labelled && !dimmed);
   }, [busName, labelled, dimmed, isStale]);
+
+  // Fan this vehicle out of a pile-up. The translation is on the inner
+  // container, so Leaflet still has the marker at the reported coordinate and
+  // the leader line drawn by CSS points back to it — the position on the map
+  // stays true while the icon steps aside to be reachable.
+  useEffect(() => {
+    const element = markerRef.current?.getElement();
+
+    if (!element) return;
+
+    const container = element.firstElementChild as HTMLElement | null;
+
+    if (!container) return;
+
+    if (spider) {
+      element.classList.add("is-spidered");
+      element.style.setProperty("--spider-x", `${spider.dx}px`);
+      element.style.setProperty("--spider-y", `${spider.dy}px`);
+      element.style.setProperty(
+        "--spider-len",
+        `${Math.hypot(spider.dx, spider.dy)}px`
+      );
+      element.style.setProperty(
+        "--spider-angle",
+        `${(Math.atan2(spider.dy, spider.dx) * 180) / Math.PI}deg`
+      );
+    } else {
+      element.classList.remove("is-spidered");
+    }
+  }, [spider, isStale]);
 
   // "Waiting for the next fix", shown only once one is actually overdue.
   //
@@ -330,7 +385,23 @@ function BusMarkerComponent({
       icon={busIcon(isStale)}
       title={busName}
       opacity={dimmed ? 0.25 : 1}
-      zIndexOffset={dimmed ? 400 : isStale ? 600 : 1000}
+      eventHandlers={{
+        click: () => {
+          if (device.id === undefined) return;
+
+          if (!onTap) {
+            toggleFollow(device.id);
+
+            return;
+          }
+
+          // Opening a pile-up is not picking a vehicle out of it. Leaflet opens
+          // a marker's popup on click regardless, so an arbitrary member of the
+          // pile would otherwise announce itself as the one you chose.
+          if (onTap(device.id) === "opened") markerRef.current?.closePopup();
+        },
+      }}
+      zIndexOffset={spider ? 1400 : dimmed ? 400 : isStale ? 600 : 1000}
     >
       <Popup>
         <div className="bus-popup">

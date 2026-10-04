@@ -78,7 +78,8 @@
         "my_location": "موقعي",
         "zoom_in": "تكبير",
         "zoom_out": "تصغير",
-        "language": "اللغة"
+        "language": "اللغة",
+        "fit_network": "عرض كامل الشبكة"
     },
     "nearby": {
         "title": "المحطات القريبة",
@@ -110,5 +111,9 @@
         "dark": "داكن",
         "satellite": "قمر صناعي",
         "terrain": "تضاريس"
+    },
+    "follow": {
+        "following": "تتبع الحافلة",
+        "stop": "إيقاف التتبع"
     }
 }
