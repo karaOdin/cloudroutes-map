@@ -82,4 +82,11 @@ export type LeafletProvider = {
   id: number;
   url: string;
   name: string;
+  /** i18n key for the label shown in the style picker. */
+  labelKey: string;
+  /**
+   * Required by every provider here. OpenStreetMap's licence and Esri's terms
+   * both oblige us to show it, and the map was rendering with none at all.
+   */
+  attribution: string;
 };

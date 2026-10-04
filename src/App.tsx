@@ -21,6 +21,7 @@ import {
   FocusController,
 } from "./components/FocusLayer.tsx";
 import { MarkerMotionGuard } from "./components/MarkerMotionGuard.tsx";
+import { MapStyleControl } from "./components/MapStyleControl.tsx";
 import Modal from "react-modal";
 import { useEffect, useRef, useState } from "react";
 import { Filters } from "./components/Filters.tsx";
@@ -361,7 +362,14 @@ function ZoomControl() {
         onClick={() => map.zoomIn()}
         aria-label={t("controls.zoom_in")}
       >
-        <span aria-hidden="true">+</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 5v14M5 12h14"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          />
+        </svg>
       </button>
       <div className="zoom-divider" />
       <button
@@ -370,7 +378,14 @@ function ZoomControl() {
         onClick={() => map.zoomOut()}
         aria-label={t("controls.zoom_out")}
       >
-        <span aria-hidden="true">−</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M5 12h14"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          />
+        </svg>
       </button>
     </div>
   );
@@ -691,7 +706,10 @@ function App() {
       scrollWheelZoom
       zoomControl={false}
     >
-      <TileLayer url={leafletProvider.url} />
+      <TileLayer
+        url={leafletProvider.url}
+        attribution={leafletProvider.attribution}
+      />
       <FocusController />
       <MarkerMotionGuard />
       <DevicePositionMarkers />
@@ -739,6 +757,8 @@ function App() {
             <path d="M400-240v-80h160v80H400ZM240-440v-80h480v80H240ZM120-640v-80h720v80H120Z" />
           </svg>
         </button>
+
+        <MapStyleControl />
 
         {!!window.env && (
           <button

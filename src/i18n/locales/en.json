@@ -101,5 +101,14 @@
     },
     "bus": {
         "last_seen": "Last seen {{age}} ago"
+    },
+    "map_style": {
+        "title": "Map style",
+        "light": "Light",
+        "classic": "Classic",
+        "streets": "Streets",
+        "dark": "Dark",
+        "satellite": "Satellite",
+        "terrain": "Terrain"
     }
 }

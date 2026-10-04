@@ -101,5 +101,14 @@
     },
     "bus": {
         "last_seen": "Vu il y a {{age}}"
+    },
+    "map_style": {
+        "title": "Style de carte",
+        "light": "Clair",
+        "classic": "Classique",
+        "streets": "Rues",
+        "dark": "Sombre",
+        "satellite": "Satellite",
+        "terrain": "Relief"
     }
 }

@@ -101,5 +101,14 @@
     },
     "bus": {
         "last_seen": "آخر ظهور منذ {{age}}"
+    },
+    "map_style": {
+        "title": "نمط الخريطة",
+        "light": "فاتح",
+        "classic": "كلاسيكي",
+        "streets": "شوارع",
+        "dark": "داكن",
+        "satellite": "قمر صناعي",
+        "terrain": "تضاريس"
     }
 }

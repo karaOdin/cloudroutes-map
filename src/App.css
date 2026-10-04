@@ -3467,6 +3467,121 @@ body:has(.route-results-wrapper) .leaflet-popup {
   top: calc(140px + var(--safe-top)) !important;
 }
 
+/* Map style picker.
+   A map control rather than a field in the filters sheet, which is where a
+   rider looks for it. Each option previews the style over the area actually on
+   screen — a list of names says nothing about what you are choosing between. */
+.map-style {
+  position: relative;
+}
+
+.map-style__panel {
+  position: absolute;
+  top: 0;
+  inset-inline-end: calc(100% + 10px);
+  width: 268px;
+  max-width: calc(100vw - 92px);
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  transform-origin: top right;
+  animation: map-style-in var(--dur) var(--ease-out);
+}
+
+[dir="rtl"] .map-style__panel {
+  transform-origin: top left;
+}
+
+.map-style__heading {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.map-style__options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.map-style__option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font: inherit;
+}
+
+/* The swatch carries the selected ring, so the label never shifts. */
+.map-style__swatch {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  box-shadow: 0 0 0 1px var(--border);
+  transition: box-shadow var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.map-style__swatch img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.map-style__option:hover .map-style__swatch {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 1px var(--border-strong), var(--shadow-sm);
+}
+
+.map-style__option:focus-visible .map-style__swatch {
+  outline: none;
+  box-shadow: var(--ring-brand);
+}
+
+.map-style__option[aria-selected="true"] .map-style__swatch {
+  box-shadow: 0 0 0 2px var(--brand-500);
+}
+
+.map-style__option[aria-selected="true"] .map-style__name {
+  color: var(--brand-600);
+  font-weight: 700;
+}
+
+.map-style__name {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+}
+
+@keyframes map-style-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 /* Focus mode
    Tapping a line concentrates the map on it; everything else drops back
    rather than disappearing, so the network context is still readable. The
