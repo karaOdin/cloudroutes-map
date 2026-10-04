@@ -100,11 +100,7 @@ function BusMarkerComponent({
     [latitude, longitude]
   );
   const busCategory = capitalize(device?.category || "bus");
-  // Only ever a name Traccar gave us. A vehicle whose device record could not
-  // be fetched is drawn without one rather than captioned with its internal id,
-  // which looks like a name and is not.
-  const busName = tidyVehicleName(device?.name ?? "");
-  const isNamed = busName.length > 0;
+  const busName = tidyVehicleName(device?.name ?? "Unknown");
   const isStale = freshness === "stale";
 
   /**
@@ -293,8 +289,8 @@ function BusMarkerComponent({
     if (!element) return;
 
     element.style.setProperty("--bus-label", JSON.stringify(busName));
-    element.classList.toggle("is-labelled", isNamed && labelled && !dimmed);
-  }, [busName, isNamed, labelled, dimmed, isStale]);
+    element.classList.toggle("is-labelled", labelled && !dimmed);
+  }, [busName, labelled, dimmed, isStale]);
 
   // "Waiting for the next fix", shown only once one is actually overdue.
   //
@@ -332,7 +328,7 @@ function BusMarkerComponent({
       ref={markerRef}
       position={target}
       icon={busIcon(isStale)}
-      title={isNamed ? busName : undefined}
+      title={busName}
       opacity={dimmed ? 0.25 : 1}
       zIndexOffset={dimmed ? 400 : isStale ? 600 : 1000}
     >
@@ -354,7 +350,9 @@ function BusMarkerComponent({
             />
           </svg>
           <div className="bus-popup__text">
-            <span>{isNamed ? `${busCategory} - ${busName}` : busCategory}</span>
+            <span>
+              {busCategory} - {busName}
+            </span>
             {isStale && (
               <span className="bus-popup__stale">
                 {t("bus.last_seen", { age: formatAge(age) })}
