@@ -3474,7 +3474,7 @@ body:has(.route-results-wrapper) .leaflet-popup {
   position: sticky;
   top: 0;
   z-index: 2;
-  padding: 10px 16px 14px;
+  padding: 8px 16px 12px;
   background: var(--brand-gradient);
   color: var(--on-brand);
   border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
@@ -3484,20 +3484,20 @@ body:has(.route-results-wrapper) .leaflet-popup {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 9px;
 }
 
 .lines-sheet__title {
   flex: 1;
   margin: 0;
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--on-brand);
 }
 
 .lines-sheet__search {
   width: 100%;
-  padding: 10px 14px;
+  padding: 8px 14px;
   border: none;
   border-radius: var(--radius-full);
   background: rgba(255, 255, 255, 0.95);
@@ -3585,12 +3585,16 @@ body:has(.route-results-wrapper) .leaflet-popup {
 }
 
 /* Each end gets half the room, so a long name cannot swallow the other. */
+/* Each end gets half the room, and `plaintext` lays each name out in its own
+   direction — without it an Arabic name in this left-to-right row has its
+   ellipsis applied at the wrong end, eating the start of the word. */
 .line-card__terminus {
   flex: 1 1 0;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  unicode-bidi: plaintext;
 }
 
 .line-card__arrow {
@@ -3617,6 +3621,19 @@ body:has(.route-results-wrapper) .leaflet-popup {
 
 .line-card__chevron.is-open {
   transform: rotate(180deg);
+}
+
+/* Said plainly rather than hidden: the order shown is derived from geometry,
+   and on a line whose stops do not sit on its route it cannot be trusted. */
+.line-card__unordered {
+  margin: 0 0 10px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--orange-soft);
+  color: var(--orange-ink);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .line-card__detail {
@@ -3757,6 +3774,10 @@ body:has(.route-results-wrapper) .leaflet-popup {
   text-shadow: none;
 }
 
+/* Deliberately not `unicode-bidi: plaintext` here. It is needed on the termini
+   row, where an ellipsis would otherwise clip an Arabic name at the wrong end,
+   but in this list it pushes the name to the far edge and away from the dot it
+   belongs to. */
 .stop-list__name {
   min-width: 0;
   font-size: 13.5px;

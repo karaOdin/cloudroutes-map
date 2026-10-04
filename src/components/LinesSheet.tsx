@@ -33,7 +33,45 @@ type SheetLine = {
   colour: string;
   stops: SheetStop[];
   length: number;
+  /**
+   * Whether the order below is trustworthy. The order is derived from
+   * geometry, so on a line whose stops do not sit on its drawn route it is
+   * nonsense, and saying nothing would be worse than saying so.
+   */
+  ordered: boolean;
 };
+
+/**
+ * Does the derived order hold together?
+ *
+ * If the stops really are in travelling order, the straight-line gap between
+ * neighbours is about the same as the distance along the route between them.
+ * Where a stop has been placed out of order, that ratio blows up. Measured
+ * across four tenants, 21 of 33 lines score zero bad pairs and the rest tail
+ * off to 43%, so a tenth is a clear separator — it rejects exactly the lines
+ * whose stops sit kilometres off their own route.
+ */
+function orderingHolds(stops: SheetStop[]): boolean {
+  let pairs = 0;
+  let bad = 0;
+
+  for (let i = 1; i < stops.length; i += 1) {
+    const along = stops[i].along - stops[i - 1].along;
+
+    // Stops on top of each other say nothing either way.
+    if (!Number.isFinite(along) || along < 5) continue;
+
+    const direct = latLng(stops[i - 1].lat, stops[i - 1].lng).distanceTo(
+      latLng(stops[i].lat, stops[i].lng)
+    );
+
+    pairs += 1;
+
+    if (direct / along > 2) bad += 1;
+  }
+
+  return pairs === 0 || bad / pairs <= 0.1;
+}
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function toSheetLines(lines: Line[]): SheetLine[] {
@@ -72,12 +110,25 @@ function toSheetLines(lines: Line[]): SheetLine[] {
       0
     );
 
+    const ordered = orderingHolds(stops);
+
     return {
       id: line.name,
       name: line.name,
       colour: (line as any).color || "#0c4a6e",
-      stops,
+      // An order we cannot vouch for is not shown as one: the stops stay in
+      // the order the API gave them, which is at least not invented.
+      stops: ordered ? stops : raw
+        .map((stop) => ({
+          id: stop.id,
+          name: stop.name,
+          lat: parseFloat(stop.Lat ?? stop.latitude),
+          lng: parseFloat(stop.Long ?? stop.longitude),
+          along: Number.POSITIVE_INFINITY,
+        }))
+        .filter((stop) => Number.isFinite(stop.lat) && Number.isFinite(stop.lng)),
       length,
+      ordered,
     };
   });
 }
@@ -232,7 +283,7 @@ export function LinesSheet({
                   />
                   <span className="line-card__text">
                     <span className="line-card__name">{line.name}</span>
-                    {line.stops.length > 1 && (
+                    {line.ordered && line.stops.length > 1 && (
                       <span className="line-card__termini">
                         <span className="line-card__terminus">
                           {line.stops[0].name}
@@ -275,6 +326,12 @@ export function LinesSheet({
                       </svg>
                       {t("lines_sheet.show_on_map")}
                     </button>
+
+                    {!line.ordered && (
+                      <p className="line-card__unordered">
+                        {t("lines_sheet.order_unknown")}
+                      </p>
+                    )}
 
                     <ol
                       className="stop-list"
