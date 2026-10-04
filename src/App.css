@@ -3467,6 +3467,79 @@ body:has(.route-results-wrapper) .leaflet-popup {
   top: calc(140px + var(--safe-top)) !important;
 }
 
+/* Calling out a stop.
+   Flying to a stop moves the map but says nothing about which of the dots now
+   on screen was the one asked for. A ring expands from it and its name sits
+   above it, so the answer is unmistakable without the user hunting. */
+.bus-stop-marker.is-highlighted {
+  z-index: 900 !important;
+}
+
+.bus-stop-marker.is-highlighted .bus-stop-marker__dot {
+  transform: scale(1.5);
+}
+
+/* The ring. Sized in the icon's own box so it stays centred on the stop at any
+   zoom, and non-interactive so it never takes the tap. */
+.bus-stop-marker.is-highlighted .bus-stop-marker__dot::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 50%;
+  border: 2.5px solid var(--stop-color, var(--brand-500));
+  animation: stop-callout 1.5s var(--ease-out) infinite;
+  pointer-events: none;
+}
+
+/* The name, so the callout says which stop rather than merely where. */
+.bus-stop-marker.is-highlighted .bus-stop-marker__dot::before {
+  content: var(--stop-name, "");
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 11px);
+  transform: translateX(-50%);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: var(--text);
+  color: var(--surface);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 16px;
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  animation: stop-name-in var(--dur) var(--ease-out);
+}
+
+@keyframes stop-callout {
+  from {
+    opacity: 0.85;
+    transform: scale(0.35);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+}
+
+@keyframes stop-name-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 /* Lines & stops sheet.
    A map answers "what is near me"; it is a poor way to answer "where does this
    line go". This is that second question, which had no surface before. */

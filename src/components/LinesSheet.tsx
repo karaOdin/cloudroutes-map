@@ -10,6 +10,7 @@ import { Line } from "@cloudroutes/core/lines";
 import { distanceAlong } from "../services/route-path.ts";
 import { orderStopsByRoad } from "../services/stop-order.ts";
 import { useFocusStore } from "../hooks/use-focus-store.ts";
+import { useHighlightStore } from "../hooks/use-highlight-store.ts";
 import {
   FALLBACK_LINE_COLOUR,
   useLineColours,
@@ -156,6 +157,7 @@ export function LinesSheet({
   const { t, i18n } = useTranslation();
   const map = useMap();
   const setFocus = useFocusStore((state) => state.toggleFocus);
+  const highlight = useHighlightStore((state) => state.highlight);
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const lineColours = useLineColours();
@@ -223,6 +225,9 @@ export function LinesSheet({
   };
 
   const goToStop = (stop: SheetStop) => {
+    // Mark it before flying: arriving at a screenful of identical dots with no
+    // indication of which one was asked for is the whole problem here.
+    highlight(stop.id);
     map.flyTo([stop.lat, stop.lng], Math.max(map.getZoom(), 16));
     onClose();
   };
