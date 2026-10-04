@@ -5,6 +5,10 @@ import { busStopIconFor, MINOR_STOP_MIN_ZOOM } from "../icons.ts";
 import { Marker } from "react-leaflet";
 import { useFilterStore } from "../hooks/use-filter-store.ts";
 import { useMapZoom } from "../hooks/use-map-zoom.ts";
+import {
+  FALLBACK_LINE_COLOUR,
+  useLineColours,
+} from "../hooks/use-line-colours.ts";
 import { useFocusStore } from "../hooks/use-focus-store.ts";
 import { MapFilters } from "../types.ts";
 import  { useState } from "react";
@@ -23,6 +27,7 @@ type StopMarker = {
 export function BusStopsMarkers() {
   const filters = useFilterStore((state) => state.filters);
   const zoom = useMapZoom();
+  const lineColours = useLineColours();
   const focusedLine = useFocusStore((state) => state.focusedLine);
   const [selectedStop, setSelectedStop] = useState<StopMarker | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,7 +45,12 @@ export function BusStopsMarkers() {
           ] as [number, number],
           lines: stop.lines.map((line) => ({
             name: line.name,
-            color: (line as any).color || "#0c4a6e", // Fallback to indigo if color not available
+            // The stops endpoint carries no colour, so every bead fell back to
+            // one shade. The colour belongs to the line, so it is joined in.
+            color:
+              (line as any).color ||
+              lineColours.get(line.name) ||
+              FALLBACK_LINE_COLOUR,
           })),
         };
       });

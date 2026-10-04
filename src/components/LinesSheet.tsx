@@ -8,6 +8,10 @@ import { useLines, useStops } from "@cloudroutes/query/lines";
 import { Line } from "@cloudroutes/core/lines";
 import { distanceAlong } from "../services/route-path.ts";
 import { useFocusStore } from "../hooks/use-focus-store.ts";
+import {
+  FALLBACK_LINE_COLOUR,
+  useLineColours,
+} from "../hooks/use-line-colours.ts";
 
 type SheetStop = {
   id: number;
@@ -16,6 +20,11 @@ type SheetStop = {
   lng: number;
   /** Metres from the start of the line, used to order and to label. */
   along: number;
+};
+
+type StopLines = {
+  id: number;
+  lines: Array<{ name: string; colour?: string }>;
 };
 
 type SheetLine = {
@@ -96,14 +105,21 @@ export function LinesSheet({
   const setFocus = useFocusStore((state) => state.toggleFocus);
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const lineColours = useLineColours();
 
   const { data: lines } = useLines({ queryKey: [QUERY_KEYS.LINES] });
-  const { data: stops } = useStops<Array<{ id: number; lines?: unknown[] }>>({
+  const { data: stops } = useStops<StopLines[]>({
     queryKey: [QUERY_KEYS.STOPS],
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     select: (data) =>
-      (data as unknown as Array<{ id: number; lines?: unknown[] }>).map(
-        (stop) => ({ id: stop.id, lines: stop.lines })
-      ),
+      (data as any[]).map((stop) => ({
+        id: stop.id,
+        lines: (stop.lines ?? []).map((line: any) => ({
+          name: line.name,
+          colour: line.color as string | undefined,
+        })),
+      })),
+    /* eslint-enable @typescript-eslint/no-explicit-any */
   });
 
   const sheetLines = useMemo(
@@ -111,16 +127,23 @@ export function LinesSheet({
     [lines]
   );
 
-  /** How many lines serve a stop, for the interchange marker. */
+  /** Which lines serve each stop, so an interchange can show what it connects. */
   const servedBy = useMemo(() => {
-    const counts = new Map<number, number>();
+    const byStop = new Map<number, Array<{ name: string; colour: string }>>();
 
-    (stops ?? []).forEach((stop) => {
-      counts.set(stop.id, stop.lines?.length ?? 0);
-    });
+    (stops ?? []).forEach((stop) =>
+      byStop.set(
+        stop.id,
+        (stop.lines ?? []).map((line) => ({
+          name: line.name,
+          colour:
+            line.colour ?? lineColours.get(line.name) ?? FALLBACK_LINE_COLOUR,
+        }))
+      )
+    );
 
-    return counts;
-  }, [stops]);
+    return byStop;
+  }, [stops, lineColours]);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -209,6 +232,19 @@ export function LinesSheet({
                   />
                   <span className="line-card__text">
                     <span className="line-card__name">{line.name}</span>
+                    {line.stops.length > 1 && (
+                      <span className="line-card__termini">
+                        <span className="line-card__terminus">
+                          {line.stops[0].name}
+                        </span>
+                        <span className="line-card__arrow" aria-hidden="true">
+                          →
+                        </span>
+                        <span className="line-card__terminus">
+                          {line.stops[line.stops.length - 1].name}
+                        </span>
+                      </span>
+                    )}
                     <span className="line-card__meta">
                       {line.stops.length > 0
                         ? t("lines_sheet.stops_count", { count: line.stops.length })
@@ -233,6 +269,10 @@ export function LinesSheet({
                       className="line-card__show"
                       onClick={() => showOnMap(line)}
                     >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11Z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+                        <circle cx="12" cy="10" r="2.4" stroke="currentColor" strokeWidth="1.9" />
+                      </svg>
                       {t("lines_sheet.show_on_map")}
                     </button>
 
@@ -240,8 +280,15 @@ export function LinesSheet({
                       className="stop-list"
                       style={{ "--line-colour": line.colour } as React.CSSProperties}
                     >
-                      {line.stops.map((stop) => {
-                        const interchange = (servedBy.get(stop.id) ?? 0) > 1;
+                      {line.stops.map((stop, index) => {
+                        const others = (servedBy.get(stop.id) ?? []).filter(
+                          (served) => served.name !== line.name
+                        );
+                        // The ends of a line are landmarks: they are how a
+                        // rider decides whether this is the direction they
+                        // want, so they are drawn as stops of a different kind.
+                        const terminus =
+                          index === 0 || index === line.stops.length - 1;
 
                         return (
                           <li key={stop.id} className="stop-list__item">
@@ -251,10 +298,35 @@ export function LinesSheet({
                               onClick={() => goToStop(stop)}
                             >
                               <span
-                                className={`stop-list__dot${interchange ? " is-interchange" : ""}`}
+                                className={
+                                  "stop-list__dot" +
+                                  (terminus ? " is-terminus" : "") +
+                                  (others.length > 0 ? " is-interchange" : "")
+                                }
                                 aria-hidden="true"
                               />
-                              <span className="stop-list__name">{stop.name}</span>
+                              <span className="stop-list__text">
+                                <span className="stop-list__name">{stop.name}</span>
+                                {others.length > 0 && (
+                                  <span className="stop-list__changes">
+                                    {others.slice(0, 4).map((served) => (
+                                      <span
+                                        key={served.name}
+                                        className="stop-list__chip"
+                                        style={{ background: served.colour }}
+                                        title={served.name}
+                                      >
+                                        {served.name}
+                                      </span>
+                                    ))}
+                                    {others.length > 4 && (
+                                      <span className="stop-list__chip stop-list__chip--more">
+                                        +{others.length - 4}
+                                      </span>
+                                    )}
+                                  </span>
+                                )}
+                              </span>
                               {Number.isFinite(stop.along) && (
                                 <span className="stop-list__along">{km(stop.along)}</span>
                               )}
