@@ -3,12 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import Modal from "react-modal";
 import { useMap } from "react-leaflet";
 import { useTranslation } from "react-i18next";
-import { latLng, latLngBounds, point } from "leaflet";
+import { latLng, latLngBounds } from "leaflet";
 import { QUERY_KEYS } from "@cloudroutes/query";
 import { useLines, useStops } from "@cloudroutes/query/lines";
 import { Line } from "@cloudroutes/core/lines";
 import { distanceAlong } from "../services/route-path.ts";
 import { orderStopsByRoad } from "../services/stop-order.ts";
+import { flyToVisible, insetPadding } from "../services/map-insets.ts";
 import { useFocusStore } from "../hooks/use-focus-store.ts";
 import { useHighlightStore } from "../hooks/use-highlight-store.ts";
 import {
@@ -219,7 +220,7 @@ export function LinesSheet({
     setFocus(line.name);
 
     if (points.length > 1) {
-      map.fitBounds(latLngBounds(points), { padding: [40, 40] });
+      map.fitBounds(latLngBounds(points), insetPadding(40));
     }
 
     onClose();
@@ -230,20 +231,10 @@ export function LinesSheet({
     // indication of which one was asked for is the whole problem here.
     highlight(stop.id);
 
-    const zoom = Math.max(map.getZoom(), 16);
-    const size = map.getSize();
-    const drawerTop =
-      document.querySelector(".lines-drawer")?.getBoundingClientRect().top ??
-      size.y;
-
-    // The drawer stays open, so centring the map would hide the stop behind
-    // it. Place it in the middle of whatever strip is still visible instead.
-    const wanted = point(size.x / 2, Math.max(drawerTop, 120) / 2);
-    const centre = map
-      .project([stop.lat, stop.lng], zoom)
-      .add(size.divideBy(2).subtract(wanted));
-
-    map.flyTo(map.unproject(centre, zoom), zoom);
+    // Lands in the middle of what can be seen, which is neither the middle of
+    // the map nor a fixed offset: the drawer covers the bottom and the host's
+    // search bar covers the top.
+    flyToVisible(map, [stop.lat, stop.lng], Math.max(map.getZoom(), 16));
   };
 
   return (

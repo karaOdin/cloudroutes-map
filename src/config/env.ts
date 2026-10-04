@@ -10,6 +10,7 @@ declare global {
       TRACCAR_USER?: string;
       TRACCAR_PASSWORD?: string;
       OSRM_URL?: string;
+      MAP_INSET_TOP?: number;
       LINE_IS_DISABLED?: boolean;
     };
   }
@@ -43,4 +44,11 @@ export const Env = {
    * tenant running its own should point this at it.
    */
   OSRM_URL: window?.env?.OSRM_URL ?? import.meta.env.VITE_OSRM_URL,
+  /**
+   * Pixels of the map covered by the host's own chrome at the top — its search
+   * bar. The host knows this and we do not, so it should say; without it a
+   * WebView falls back to an assumption that is right for one layout only.
+   */
+  MAP_INSET_TOP:
+    window?.env?.MAP_INSET_TOP ?? import.meta.env.VITE_MAP_INSET_TOP,
 } as const;

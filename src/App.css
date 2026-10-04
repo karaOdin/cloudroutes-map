@@ -3462,9 +3462,11 @@ body:has(.route-results-wrapper) .leaflet-popup {
 
 
 /* Map controls - WebView position (below search bar) */
+/* Pushed down to clear the host's own search bar above the WebView. The amount
+   comes from the host via `MAP_INSET_TOP`, since it knows its own layout and
+   this code does not; the fallback is what was hardcoded here before. */
 .map-controls-webview {
-  /* Pushed down to clear the React Native search bar above the WebView. */
-  top: calc(140px + var(--safe-top)) !important;
+  top: calc(var(--map-inset-top, 140px) + 20px + var(--safe-top)) !important;
 }
 
 /* Lines & stops as a drawer rather than a modal.

@@ -24,6 +24,11 @@ import {
 } from "./components/FocusLayer.tsx";
 import { MarkerMotionGuard } from "./components/MarkerMotionGuard.tsx";
 import { MapStyleControl } from "./components/MapStyleControl.tsx";
+import {
+  flyToVisible,
+  insetPadding,
+  mapInsets,
+} from "./services/map-insets.ts";
 import { LinesSheet } from "./components/LinesSheet.tsx";
 import {
   FitNetworkControl,
@@ -61,6 +66,7 @@ declare global {
       TRACCAR_USER?: string;
       TRACCAR_PASSWORD?: string;
       OSRM_URL?: string;
+      MAP_INSET_TOP?: number;
       LINE_IS_DISABLED?: boolean;
     };
     language?: string;
@@ -372,6 +378,8 @@ function MapChrome({ theme }: { theme?: "dark" }) {
     const container = map.getContainer();
 
     container.dataset.chrome = theme ?? "light";
+    // So the controls clear the host's chrome by the amount it actually takes.
+    container.style.setProperty("--map-inset-top", `${mapInsets().top}px`);
 
     return () => {
       delete container.dataset.chrome;
@@ -442,6 +450,7 @@ function FitRouteBounds({ routeData }: { routeData: RouteData | null }) {
     if (allCoordinates.length > 0) {
       setTimeout(() => {
         map.fitBounds(allCoordinates as any, {
+          ...insetPadding(50),
           padding: [50, 50],
           maxZoom: 16,
         });
@@ -705,14 +714,14 @@ function App() {
 
   function getLocation() {
     setDisplayLocation((prev) => !prev);
-    if (!displayLocation && location) {
-      map?.current?.flyTo(location, 15);
-    } else {
-      map?.current?.flyTo(
-        [defaultLocation?.latitude, defaultLocation?.longitude],
-        15
-      );
-    }
+    const target: [number, number] =
+      !displayLocation && location
+        ? location
+        : [Number(defaultLocation?.latitude), Number(defaultLocation?.longitude)];
+
+    // Aim at the middle of what can be seen, not the middle of the element:
+    // the host's search bar covers the top of it.
+    if (map.current) flyToVisible(map.current, target, 15);
   }
 
   // Show loading only when NOT in WebView (React Native handles loading)

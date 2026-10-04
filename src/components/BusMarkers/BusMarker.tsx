@@ -15,6 +15,7 @@ import {
 } from "leaflet";
 import { useTranslation } from "react-i18next";
 import { busIcon } from "../../icons.ts";
+import { mapInsets } from "../../services/map-insets.ts";
 import { BusFreshness, capitalize, formatAge } from "../../helpers.ts";
 import { tidyVehicleName } from "./bus-labels.ts";
 import { useFollowStore } from "../../hooks/use-follow-store.ts";
@@ -403,7 +404,12 @@ function BusMarkerComponent({
       }}
       zIndexOffset={spider ? 1400 : dimmed ? 400 : isStale ? 600 : 1000}
     >
-      <Popup>
+      <Popup
+        // Leaflet pans a popup into view on open, and without this it panned
+        // it under the host's search bar.
+        autoPanPaddingTopLeft={[16, 16 + mapInsets().top]}
+        autoPanPaddingBottomRight={[16, 16 + mapInsets().bottom]}
+      >
         <div className="bus-popup">
           <svg
             className="bus-popup__icon"

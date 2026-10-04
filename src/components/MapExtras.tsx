@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useMap } from "react-leaflet";
 import { useTranslation } from "react-i18next";
 import { latLngBounds, LatLngExpression } from "leaflet";
+import { insetPadding } from "../services/map-insets.ts";
 import { QUERY_KEYS } from "@cloudroutes/query";
 import { useLines } from "@cloudroutes/query/lines";
 import { Line } from "@cloudroutes/core/lines";
@@ -71,7 +72,7 @@ export function FitNetworkControl() {
 
     if (points.length < 2) return;
 
-    map.fitBounds(latLngBounds(points), { padding: [36, 36] });
+    map.fitBounds(latLngBounds(points), insetPadding(36));
   };
 
   if (!lines?.length) return null;
