@@ -115,5 +115,13 @@
     "follow": {
         "following": "Following bus",
         "stop": "Stop following"
+    },
+    "lines_sheet": {
+        "title": "Lines & stops",
+        "search": "Search a line or stop",
+        "none": "Nothing matches",
+        "stops_count": "{{count}} stops",
+        "no_stops": "No stops listed",
+        "show_on_map": "Show on map"
     }
 }

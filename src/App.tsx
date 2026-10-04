@@ -24,6 +24,7 @@ import {
 } from "./components/FocusLayer.tsx";
 import { MarkerMotionGuard } from "./components/MarkerMotionGuard.tsx";
 import { MapStyleControl } from "./components/MapStyleControl.tsx";
+import { LinesSheet } from "./components/LinesSheet.tsx";
 import {
   FitNetworkControl,
   TileReadyFlag,
@@ -634,6 +635,7 @@ function App() {
   } = useDefaultLocation();
 
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [isLinesOpen, setIsLinesOpen] = useState(false);
   const [location, setLocation] = useState<[number, number] | null>(null);
   const [displayLocation, setDisplayLocation] = useState(false);
   const [routeData, setRouteData] = useState<RouteData | null>(null);
@@ -791,6 +793,22 @@ function App() {
           </svg>
         </button>
 
+        <button
+          type="button"
+          className="control-button"
+          onClick={() => setIsLinesOpen(true)}
+          aria-label={t("lines_sheet.title")}
+          aria-haspopup="dialog"
+          aria-expanded={isLinesOpen}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="6" cy="7" r="2" stroke="currentColor" strokeWidth="1.8" />
+            <circle cx="6" cy="17" r="2" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M6 9v6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <path d="M12 7h8M12 17h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </button>
+
         <MapStyleControl />
         <FitNetworkControl />
 
@@ -838,6 +856,8 @@ function App() {
       >
         <Filters onApply={() => setIsFiltersOpen(false)} />
       </Modal>
+
+      <LinesSheet isOpen={isLinesOpen} onClose={() => setIsLinesOpen(false)} />
     </MapContainer>
   );
 }

@@ -115,5 +115,13 @@
     "follow": {
         "following": "Suivi du bus",
         "stop": "Arrêter le suivi"
+    },
+    "lines_sheet": {
+        "title": "Lignes et arrêts",
+        "search": "Chercher une ligne ou un arrêt",
+        "none": "Aucun résultat",
+        "stops_count": "{{count}} arrêts",
+        "no_stops": "Aucun arrêt listé",
+        "show_on_map": "Voir sur la carte"
     }
 }

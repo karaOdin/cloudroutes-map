@@ -156,6 +156,28 @@ export function chooseRoute(
   return best ? { path: best, maxOffRoute: guessedTolerance } : null;
 }
 
+/**
+ * How far along a polyline a point sits, in metres from its start.
+ *
+ * The API gives a line's stops as an unordered set — the pivot carries only the
+ * two ids, no sequence — so the order riders actually travel in has to be
+ * recovered from the geometry. Projecting each stop onto the route and sorting
+ * by this is that order.
+ */
+export function distanceAlong(path: LatLng[], point: LatLng): number {
+  const snapped = snap(path, point);
+
+  if (!snapped) return Infinity;
+
+  let total = 0;
+
+  for (let i = 0; i < snapped.index; i += 1) {
+    total += path[i].distanceTo(path[i + 1]);
+  }
+
+  return total + path[snapped.index].distanceTo(snapped.point);
+}
+
 type PathBetweenOptions = {
   /** How far off the line a fix may be and still count as on this route. */
   maxOffRoute: number;

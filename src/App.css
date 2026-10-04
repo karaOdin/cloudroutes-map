@@ -3467,6 +3467,235 @@ body:has(.route-results-wrapper) .leaflet-popup {
   top: calc(140px + var(--safe-top)) !important;
 }
 
+/* Lines & stops sheet.
+   A map answers "what is near me"; it is a poor way to answer "where does this
+   line go". This is that second question, which had no surface before. */
+.lines-sheet__header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 10px 16px 14px;
+  background: var(--brand-gradient);
+  color: var(--on-brand);
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+}
+
+.lines-sheet__title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.lines-sheet__title {
+  flex: 1;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--on-brand);
+}
+
+.lines-sheet__search {
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.lines-sheet__search:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.55);
+}
+
+.lines-sheet__body {
+  padding: 10px 12px 20px;
+}
+
+.lines-sheet__empty {
+  padding: 28px 8px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.line-card {
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+
+.line-card + .line-card {
+  margin-top: 8px;
+}
+
+.line-card__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: start;
+  font: inherit;
+  color: var(--text);
+}
+
+/* The line's own colour, as the thing you scan the list by. */
+.line-card__swatch {
+  flex: none;
+  width: 5px;
+  align-self: stretch;
+  min-height: 34px;
+  border-radius: var(--radius-full);
+  box-shadow: 0 0 0 1px rgba(8, 47, 73, 0.18) inset;
+}
+
+.line-card__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.line-card__name {
+  font-size: 15px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.line-card__meta {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.line-card__chevron {
+  flex: none;
+  display: inline-flex;
+  color: var(--text-subtle);
+  transition: transform var(--dur) var(--ease-out);
+}
+
+.line-card__chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.line-card__detail {
+  padding: 0 14px 14px;
+  animation: line-detail-in var(--dur) var(--ease-out);
+}
+
+.line-card__show {
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 9px 14px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--brand-gradient);
+  color: var(--on-brand);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* The stops, in the order they are travelled — recovered by projecting each
+   onto the route, since the API returns them as an unordered set. */
+.stop-list {
+  position: relative;
+  margin: 0;
+  padding: 0 0 0 4px;
+  list-style: none;
+}
+
+.stop-list__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 7px 6px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: start;
+  font: inherit;
+  color: var(--text);
+}
+
+/* The connector, drawn behind the dots in the line's own colour. */
+.stop-list__item:not(:last-child) .stop-list__row::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 11px;
+  top: 50%;
+  width: 2px;
+  height: 100%;
+  background: var(--line-colour, var(--brand-500));
+  opacity: 0.45;
+}
+
+.stop-list__dot {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: 11px;
+  height: 11px;
+  margin-inline-start: 1px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 0 0 2.5px var(--line-colour, var(--brand-500));
+}
+
+/* An interchange is where a journey can change, so it is worth more weight. */
+.stop-list__dot.is-interchange {
+  width: 13px;
+  height: 13px;
+  margin-inline-start: 0;
+  background: var(--line-colour, var(--brand-500));
+  box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 4.5px var(--line-colour, var(--brand-500));
+}
+
+.stop-list__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stop-list__along {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes line-detail-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Fanned-out vehicles.
    The translation is on the inner container, never on the marker, so Leaflet
    still holds the vehicle at the coordinate it reported — the icon steps aside
