@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useDevicePosition } from "../../hooks/use-device-position.ts";
 import { Device } from "../../types.ts";
 import { BusMarker } from "./BusMarker.tsx";
@@ -10,15 +11,23 @@ import { useMapZoom } from "../../hooks/use-map-zoom.ts";
 import { labelledVehicles } from "./bus-labels.ts";
 import { useSpiderfy } from "../../hooks/use-spiderfy.ts";
 import { useFollowStore } from "../../hooks/use-follow-store.ts";
+import { useRouteStore } from "../../hooks/use-route-store.ts";
+import { useVehicleLines } from "../../hooks/use-vehicle-lines.ts";
 
 export function AllDevicePositionMarkers() {
   const [positions, devices] = useDevicePosition();
   const now = useNow();
   const focusedDeviceIds = useFocusedDeviceIds();
   const devicePaths = useDevicePaths();
+  const routePoints = useMemo(
+    () => devicePaths.all.map((line) => line.points),
+    [devicePaths]
+  );
   const zoom = useMapZoom();
+  const vehicleLines = useVehicleLines(positions?.data);
   const spiderfy = useSpiderfy();
   const toggleFollow = useFollowStore((state) => state.toggleFollow);
+  const routeLines = useRouteStore((state) => state.routeLines);
 
   useLivePositions();
 
@@ -81,9 +90,17 @@ export function AllDevicePositionMarkers() {
       position={position}
       freshness={freshness}
       age={busPositionAge(device, position, now)}
-      dimmed={!!focusedDeviceIds && !focusedDeviceIds.has(device.uniqueId)}
+      dimmed={
+        (!!focusedDeviceIds && !focusedDeviceIds.has(device.uniqueId)) ||
+        // A journey is on the map and this vehicle is not part of it.
+        // A journey is on the map and this vehicle is on none of its lines.
+        (!!routeLines &&
+          !(vehicleLines.get(device.id) ?? []).some((line) =>
+            routeLines.includes(line)
+          ))
+      }
       path={devicePaths.byDevice.get(device.uniqueId)}
-      routes={devicePaths.all}
+      routes={routePoints}
       labelled={labelled.has(device.id)}
       spider={spiderfy.offsets.get(device.id)}
       onTap={(id) => {

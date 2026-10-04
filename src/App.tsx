@@ -24,6 +24,7 @@ import {
 } from "./components/FocusLayer.tsx";
 import { MarkerMotionGuard } from "./components/MarkerMotionGuard.tsx";
 import { MapStyleControl } from "./components/MapStyleControl.tsx";
+import { useRouteStore } from "./hooks/use-route-store.ts";
 import {
   flyToVisible,
   insetPadding,
@@ -649,6 +650,7 @@ function App() {
   const [location, setLocation] = useState<[number, number] | null>(null);
   const [displayLocation, setDisplayLocation] = useState(false);
   const [routeData, setRouteData] = useState<RouteData | null>(null);
+  const setRouteLines = useRouteStore((state) => state.setRouteLines);
   const [appReady, setAppReady] = useState(false);
   const map = useRef<any>(null);
   const leafletProvider = useGlobalStore((state) => state.leafletProvider);
@@ -706,6 +708,26 @@ function App() {
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
   }, [i18n]);
+
+  // Tell the vehicle layers which lines the journey uses, so the buses that
+  // are not on it can step back.
+  useEffect(() => {
+    if (!routeData) {
+      setRouteLines(null);
+
+      return;
+    }
+
+    const lines = [
+      ...new Set(
+        routeData.steps
+          .map((step) => step.line)
+          .filter((line): line is string => !!line)
+      ),
+    ];
+
+    setRouteLines(lines);
+  }, [routeData, setRouteLines]);
 
   // Update document direction when language changes
   useEffect(() => {

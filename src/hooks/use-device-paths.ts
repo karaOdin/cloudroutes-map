@@ -7,12 +7,14 @@ export type RoutePaths = {
   /** Traccar `uniqueId` -> the waypoints of the line that vehicle is assigned. */
   byDevice: Map<string, LatLng[]>;
   /**
-   * Every line's waypoints. Needed because the vehicle-to-line link is admin
-   * data and some tenants have none of it — Constantine returns `buses: []` on
-   * all twelve lines — so a vehicle there can only be matched to a road by
-   * where it actually is.
+   * Every line's waypoints, with its name. Needed because the vehicle-to-line
+   * link is admin data that some tenants have none of — Constantine and Djelfa
+   * return `buses: []` on every line, M'sila links two of sixty-five and both
+   * ids are wrong — and because not every bus is on the tracker system yet.
+   * Where it is absent a vehicle can still be matched to a line by where it is
+   * actually driving.
    */
-  all: LatLng[][];
+  all: Array<{ name: string; points: LatLng[] }>;
 };
 
 /**
@@ -24,7 +26,7 @@ export function useDevicePaths(): RoutePaths {
 
   return useMemo(() => {
     const byDevice = new Map<string, LatLng[]>();
-    const all: LatLng[][] = [];
+    const all: RoutePaths["all"] = [];
 
     lines?.forEach((line) => {
       const waypoints = (line.waypoints || []) as LatLngExpression[];
@@ -41,7 +43,7 @@ export function useDevicePaths(): RoutePaths {
 
       if (points.length < 2) return;
 
-      all.push(points);
+      all.push({ name: line.name, points });
 
       line.buses.forEach((bus) => {
         if (!isEmpty(bus.traccar_device_id)) {
