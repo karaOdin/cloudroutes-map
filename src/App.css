@@ -3469,6 +3469,89 @@ body:has(.route-results-wrapper) .leaflet-popup {
   top: calc(var(--map-inset-top, 140px) + 20px + var(--safe-top)) !important;
 }
 
+/* Search results.
+   Searching used to filter the line list, so typing a stop's name returned
+   line cards with no sign of which stop matched. Stops are what people search
+   for, so they are results in their own right, grouped and labelled. */
+.lines-sheet__group {
+  margin: 14px 4px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.lines-sheet__group:first-child {
+  margin-top: 2px;
+}
+
+.result-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  cursor: pointer;
+  text-align: start;
+  font: inherit;
+  color: var(--text);
+}
+
+.result:hover {
+  background: var(--surface-muted);
+}
+
+.result:active {
+  transform: scale(0.99);
+}
+
+.result__pin {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--brand-50);
+  color: var(--brand-600);
+}
+
+.result__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.result__name {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The matched run, so a result says why it is a result. */
+.match {
+  background: var(--brand-100);
+  color: var(--brand-900);
+  border-radius: 3px;
+  padding: 0 1px;
+  font-weight: 800;
+}
+
 /* Lines & stops as a drawer rather than a modal.
    The map behind it is the thing being talked about, so it is neither dimmed
    nor blocked: the overlay passes taps through and only the panel itself takes

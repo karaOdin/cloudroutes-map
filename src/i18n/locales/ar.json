@@ -124,6 +124,8 @@
         "no_stops": "لا توجد محطات",
         "show_on_map": "عرض على الخريطة",
         "working_out_order": "جارٍ تحديد ترتيب المحطات…",
-        "reverse": "عكس الاتجاه"
+        "reverse": "عكس الاتجاه",
+        "stops_found": "{{count}} محطة",
+        "lines_found": "{{count}} خط"
     }
 }

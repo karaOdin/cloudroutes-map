@@ -124,6 +124,8 @@
         "no_stops": "Aucun arrêt listé",
         "show_on_map": "Voir sur la carte",
         "working_out_order": "Calcul de l'ordre des arrêts…",
-        "reverse": "Inverser"
+        "reverse": "Inverser",
+        "stops_found": "{{count}} arrêts",
+        "lines_found": "{{count}} lignes"
     }
 }

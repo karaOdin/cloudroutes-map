@@ -28,6 +28,9 @@ type SheetStop = {
 
 type StopLines = {
   id: number;
+  name: string;
+  lat: number;
+  lng: number;
   lines: Array<{ name: string; colour?: string }>;
 };
 
@@ -138,6 +141,21 @@ function toSheetLines(lines: Line[]): SheetLine[] {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
+/** Marks the part of a name that matched, so a result explains itself. */
+function Marked({ text, needle }: { text: string; needle: string }) {
+  const at = needle ? text.toLowerCase().indexOf(needle) : -1;
+
+  if (at < 0) return <>{text}</>;
+
+  return (
+    <>
+      {text.slice(0, at)}
+      <mark className="match">{text.slice(at, at + needle.length)}</mark>
+      {text.slice(at + needle.length)}
+    </>
+  );
+}
+
 const km = (metres: number) => `${(metres / 1000).toFixed(1)} km`;
 
 /**
@@ -171,6 +189,9 @@ export function LinesSheet({
     select: (data) =>
       (data as any[]).map((stop) => ({
         id: stop.id,
+        name: stop.name,
+        lat: parseFloat(stop.latitude ?? stop.Lat),
+        lng: parseFloat(stop.longitude ?? stop.Long),
         lines: (stop.lines ?? []).map((line: any) => ({
           name: line.name,
           colour: line.color as string | undefined,
@@ -202,17 +223,31 @@ export function LinesSheet({
     return byStop;
   }, [stops, lineColours]);
 
-  const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase();
+  const needle = query.trim().toLowerCase();
 
-    if (!needle) return sheetLines;
+  // Searching used to filter the line list, which answered a question nobody
+  // asked: typing a stop's name returned line cards with no sign of which stop
+  // matched or why. Stops are what people search for, so they are results in
+  // their own right.
+  const results = useMemo(() => {
+    if (!needle) return null;
 
-    return sheetLines.filter(
-      (line) =>
-        line.name.toLowerCase().includes(needle) ||
-        line.stops.some((stop) => stop.name.toLowerCase().includes(needle))
-    );
-  }, [sheetLines, query]);
+    return {
+      lines: sheetLines.filter((line) =>
+        line.name.toLowerCase().includes(needle)
+      ),
+      stops: (stops ?? [])
+        .filter(
+          (stop) =>
+            stop.name?.toLowerCase().includes(needle) &&
+            Number.isFinite(stop.lat) &&
+            Number.isFinite(stop.lng)
+        )
+        .slice(0, 40),
+    };
+  }, [needle, sheetLines, stops]);
+
+  const visible = sheetLines;
 
   const showOnMap = (line: SheetLine) => {
     const points = line.stops.map((stop) => latLng(stop.lat, stop.lng));
@@ -276,11 +311,75 @@ export function LinesSheet({
         </header>
 
         <div className="lines-sheet__body">
-          {visible.length === 0 && (
+          {results && results.stops.length === 0 && results.lines.length === 0 && (
             <p className="lines-sheet__empty">{t("lines_sheet.none")}</p>
           )}
 
-          {visible.map((line) => {
+          {results && results.stops.length > 0 && (
+            <>
+              <p className="lines-sheet__group">
+                {t("lines_sheet.stops_found", { count: results.stops.length })}
+              </p>
+              <ul className="result-list">
+                {results.stops.map((stop) => (
+                  <li key={stop.id}>
+                    <button
+                      type="button"
+                      className="result"
+                      onClick={() => {
+                        setActiveStop(stop.id);
+                        goToStop({
+                          id: stop.id,
+                          name: stop.name,
+                          lat: stop.lat,
+                          lng: stop.lng,
+                          along: Number.POSITIVE_INFINITY,
+                        });
+                      }}
+                    >
+                      <span className="result__pin" aria-hidden="true">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11Z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+                          <circle cx="12" cy="10" r="2.4" stroke="currentColor" strokeWidth="1.9" />
+                        </svg>
+                      </span>
+                      <span className="result__text">
+                        <span className="result__name">
+                          <Marked text={stop.name} needle={needle} />
+                        </span>
+                        {stop.lines.length > 0 && (
+                          <span className="stop-list__changes">
+                            {stop.lines.slice(0, 5).map((served) => (
+                              <span
+                                key={served.name}
+                                className="stop-list__chip"
+                                style={{
+                                  background:
+                                    served.colour ??
+                                    lineColours.get(served.name) ??
+                                    FALLBACK_LINE_COLOUR,
+                                }}
+                              >
+                                {served.name}
+                              </span>
+                            ))}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {results && results.lines.length > 0 && (
+            <p className="lines-sheet__group">
+              {t("lines_sheet.lines_found", { count: results.lines.length })}
+            </p>
+          )}
+
+          {(results ? results.lines : visible).map((line) => {
             const open = expanded === line.id;
 
             return (
