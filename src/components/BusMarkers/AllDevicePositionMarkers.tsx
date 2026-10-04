@@ -52,13 +52,17 @@ export function AllDevicePositionMarkers() {
     drawn.push({ device, position, freshness });
   }
 
+  // Only named vehicles compete for label space. An unnamed one has nothing to
+  // show, so it must not deny a neighbour the room.
   const labelled = labelledVehicles(
-    drawn.map(({ device, position }) => ({
-      id: device.id,
-      lat: position.latitude,
-      lng: position.longitude,
-      focused: !!focusedDeviceIds && focusedDeviceIds.has(device.uniqueId),
-    })),
+    drawn
+      .filter(({ device }) => !!device.name)
+      .map(({ device, position }) => ({
+        id: device.id,
+        lat: position.latitude,
+        lng: position.longitude,
+        focused: !!focusedDeviceIds && focusedDeviceIds.has(device.uniqueId),
+      })),
     zoom
   );
 
@@ -79,12 +83,18 @@ export function AllDevicePositionMarkers() {
 
 /**
  * Stand-in for a vehicle that is reporting a position while its Traccar record
- * is out of reach. Named by device id, which is honest: it is what we know.
+ * is out of reach — an expired token, or a server the browser cannot read.
+ *
+ * Deliberately nameless. The position is real and worth drawing, but the only
+ * identifier we hold is Traccar's internal device id, and captioning a marker
+ * with it presents a number nobody uses as if it were the vehicle's name. An
+ * unnamed marker says what is true: there is a bus here, and we do not know
+ * which one.
  */
 function unknownDevice(deviceId: number): Device {
   return {
     id: deviceId,
-    name: `#${deviceId}`,
+    name: "",
     uniqueId: "",
     status: "",
     category: null,

@@ -45,13 +45,17 @@ export function LineOnlyDevicePositionMarkers() {
     drawn.push({ device, position, freshness });
   }
 
+  // Only named vehicles compete for label space. An unnamed one has nothing to
+  // show, so it must not deny a neighbour the room.
   const labelled = labelledVehicles(
-    drawn.map(({ device, position }) => ({
-      id: device.id,
-      lat: position.latitude,
-      lng: position.longitude,
-      focused: !!focusedDeviceIds && focusedDeviceIds.has(device.uniqueId),
-    })),
+    drawn
+      .filter(({ device }) => !!device.name)
+      .map(({ device, position }) => ({
+        id: device.id,
+        lat: position.latitude,
+        lng: position.longitude,
+        focused: !!focusedDeviceIds && focusedDeviceIds.has(device.uniqueId),
+      })),
     zoom
   );
 
