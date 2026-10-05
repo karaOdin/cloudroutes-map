@@ -64,11 +64,58 @@ async function getPositionsFromTraccar(fallback: Position[]) {
   }
 }
 
-async function getDevices() {
-  const { data } = await traccarClient.get<Array<Device>>("/devices");
+/** Same envelope shape the positions endpoint uses. */
+type DevicesResponse =
+  | Device[]
+  | { devices?: Device[] | null; message?: string };
 
-  // Same defence: never let a non-array reach the marker layers.
-  return Array.isArray(data) ? data : [];
+async function getDevices() {
+  try {
+    const { data } = await traccarClient.get<DevicesResponse>("/devices");
+
+    // Same defence: never let a non-array reach the marker layers.
+    if (Array.isArray(data) && data.length > 0) return data;
+  } catch {
+    // Falls through to the tenant's own copy below.
+  }
+
+  return await getDevicesFromTenant();
+}
+
+/**
+ * The device list by way of the tenant's backend, for the tenants where a
+ * browser cannot read it from Traccar directly.
+ *
+ * This list is the only place a vehicle's identity exists: not every bus is in
+ * the tenant's own `buses` table, and the ones that are carry a
+ * `traccar_device_id` that is an IMEI on one tenant and an unrelated small
+ * number on another, so it cannot be joined to a position's `deviceId`.
+ * Traccar's `name` is the fleet number — ` 651/04`, `B20 - L04` — and without
+ * it a vehicle can only be labelled by Traccar's internal row id, which means
+ * nothing to a rider.
+ *
+ * Reaching it from the browser fails two ways and both are measured: Ain
+ * Temouchent answers 401 to the client's token while its backend reads the
+ * same server fine, and Djelfa's Traccar 4 answers 400 to the `Bearer` header
+ * and accepts only Basic auth — which would put a Traccar login in the
+ * bundle. The backend already proxies positions with credentials it keeps to
+ * itself, so the device list belongs on the same path.
+ *
+ * Tried second, so nothing changes for a tenant whose Traccar the browser can
+ * already read, and harmless where the endpoint does not exist yet.
+ */
+async function getDevicesFromTenant(): Promise<Device[]> {
+  try {
+    const { data } = await axios.get<DevicesResponse>(
+      `${Env.API_URL}/gps/devices`,
+    );
+
+    if (Array.isArray(data)) return data;
+
+    return Array.isArray(data?.devices) ? data.devices : [];
+  } catch {
+    return [];
+  }
 }
 
 /**
