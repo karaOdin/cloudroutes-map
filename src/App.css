@@ -4497,13 +4497,13 @@ body:has(.route-results-wrapper) .leaflet-popup {
    exactly — same hit area, same active treatment — because tapping one does
    the same kind of thing: it takes you there and says which one you picked. */
 
+/* No scroller of its own: the drawer is the scroll container, and nesting a
+   second one meant a flick either moved the list or moved the sheet depending
+   on where your thumb landed. */
 .bus-list {
   margin: 0;
   padding: 2px 0 0;
   list-style: none;
-  max-height: 46vh;
-  overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 .bus-row {

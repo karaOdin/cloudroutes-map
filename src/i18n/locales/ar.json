@@ -119,8 +119,8 @@
     "stop": "إيقاف التتبع"
   },
   "lines_sheet": {
-    "title": "الخطوط والمحطات والحافلات",
-    "search": "ابحث عن خط أو محطة أو حافلة",
+    "title": "الخطوط والمحطات",
+    "search": "ابحث عن خط أو محطة",
     "none": "لا توجد نتائج",
     "stops_count": "{{count}} محطة",
     "no_stops": "لا توجد محطات",
@@ -128,10 +128,13 @@
     "working_out_order": "جارٍ تحديد ترتيب المحطات…",
     "reverse": "عكس الاتجاه",
     "stops_found": "{{count}} محطة",
-    "lines_found": "{{count}} خط",
-    "buses": "الحافلات",
-    "buses_count": "{{count}} حافلة",
-    "buses_found": "{{count}} حافلة",
+    "lines_found": "{{count}} خط"
+  },
+  "buses_sheet": {
+    "title": "الحافلات",
+    "search": "ابحث عن حافلة أو خط",
+    "count": "{{count}} حافلة",
+    "found": "{{count}} حافلة",
     "no_buses": "لا توجد حافلات تبث موقعها",
     "following": "متابَعة",
     "line_inferred": "يبدو أنه {{line}} — استنادًا إلى مساره"

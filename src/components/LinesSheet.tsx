@@ -12,13 +12,11 @@ import { orderStopsByRoad } from "../services/stop-order.ts";
 import { flyToVisible, insetPadding } from "../services/map-insets.ts";
 import { useFocusStore } from "../hooks/use-focus-store.ts";
 import { useHighlightStore } from "../hooks/use-highlight-store.ts";
-import { useFollowStore } from "../hooks/use-follow-store.ts";
-import { LiveBus, useLiveBuses } from "../hooks/use-live-buses.ts";
-import { formatAge } from "../helpers.ts";
 import {
   FALLBACK_LINE_COLOUR,
   useLineColours,
 } from "../hooks/use-line-colours.ts";
+import { Marked } from "./Marked.tsx";
 
 type SheetStop = {
   id: number;
@@ -144,21 +142,6 @@ function toSheetLines(lines: Line[]): SheetLine[] {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-/** Marks the part of a name that matched, so a result explains itself. */
-function Marked({ text, needle }: { text: string; needle: string }) {
-  const at = needle ? text.toLowerCase().indexOf(needle) : -1;
-
-  if (at < 0) return <>{text}</>;
-
-  return (
-    <>
-      {text.slice(0, at)}
-      <mark className="match">{text.slice(at, at + needle.length)}</mark>
-      {text.slice(at + needle.length)}
-    </>
-  );
-}
-
 const km = (metres: number) => `${(metres / 1000).toFixed(1)} km`;
 
 /**
@@ -183,11 +166,7 @@ export function LinesSheet({
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [activeStop, setActiveStop] = useState<number | null>(null);
-  const [busesOpen, setBusesOpen] = useState(false);
   const lineColours = useLineColours();
-  const buses = useLiveBuses();
-  const followed = useFollowStore((state) => state.followed);
-  const toggleFollow = useFollowStore((state) => state.toggleFollow);
 
   const { data: lines } = useLines({ queryKey: [QUERY_KEYS.LINES] });
   const { data: stops } = useStops<StopLines[]>({
@@ -240,7 +219,6 @@ export function LinesSheet({
     if (!needle) return null;
 
     return {
-      buses: buses.filter((bus) => bus.name.toLowerCase().includes(needle)),
       lines: sheetLines.filter((line) =>
         line.name.toLowerCase().includes(needle)
       ),
@@ -253,7 +231,7 @@ export function LinesSheet({
         )
         .slice(0, 40),
     };
-  }, [needle, sheetLines, stops, buses]);
+  }, [needle, sheetLines, stops]);
 
   const visible = sheetLines;
 
@@ -278,15 +256,6 @@ export function LinesSheet({
     // the map nor a fixed offset: the drawer covers the bottom and the host's
     // search bar covers the top.
     flyToVisible(map, [stop.lat, stop.lng], Math.max(map.getZoom(), 16));
-  };
-
-  // A bus is not a stop: it drives away from wherever it was flown to. So this
-  // also follows it, which is what tapping the marker already does — the map
-  // keeps it in view instead of leaving the rider to chase it. Tapping the
-  // same row again stops following, and the row stops being marked.
-  const goToBus = (bus: LiveBus) => {
-    toggleFollow(bus.id);
-    flyToVisible(map, [bus.lat, bus.lng], Math.max(map.getZoom(), 16));
   };
 
   return (
@@ -328,32 +297,8 @@ export function LinesSheet({
         </header>
 
         <div className="lines-sheet__body">
-          {results &&
-            results.stops.length === 0 &&
-            results.lines.length === 0 &&
-            results.buses.length === 0 && (
-              <p className="lines-sheet__empty">{t("lines_sheet.none")}</p>
-            )}
-
-          {results && results.buses.length > 0 && (
-            <>
-              <p className="lines-sheet__group">
-                {t("lines_sheet.buses_found", { count: results.buses.length })}
-              </p>
-              <ul className="result-list">
-                {results.buses.map((bus) => (
-                  <li key={bus.id}>
-                    <BusRow
-                      bus={bus}
-                      needle={needle}
-                      active={followed === bus.id}
-                      colours={lineColours}
-                      onClick={() => goToBus(bus)}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </>
+          {results && results.stops.length === 0 && results.lines.length === 0 && (
+            <p className="lines-sheet__empty">{t("lines_sheet.none")}</p>
           )}
 
           {results && results.stops.length > 0 && (
@@ -418,59 +363,6 @@ export function LinesSheet({
             <p className="lines-sheet__group">
               {t("lines_sheet.lines_found", { count: results.lines.length })}
             </p>
-          )}
-
-          {!results && (
-            <section className="line-card">
-              <button
-                type="button"
-                className="line-card__head"
-                onClick={() => setBusesOpen((was) => !was)}
-                aria-expanded={busesOpen}
-              >
-                <span className="bus-row__glyph is-head" aria-hidden="true">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C8 2 4 2.5 4 6v9.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h2l2-2h4l2 2h2v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V6c0-3.5-4-4-8-4z" />
-                    <path
-                      d="M7.5 15c.83 0 1.5-.67 1.5-1.5S8.33 12 7.5 12 6 12.67 6 13.5 6.67 15 7.5 15zM16.5 15c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5-1.5.67-1.5 1.5.67 1.5 1.5 1.5zM18 6H6v5h12V6z"
-                      fill="var(--surface)"
-                    />
-                  </svg>
-                </span>
-                <span className="line-card__text">
-                  <span className="line-card__name">{t("lines_sheet.buses")}</span>
-                  <span className="line-card__meta">
-                    {buses.length > 0
-                      ? t("lines_sheet.buses_count", { count: buses.length })
-                      : t("lines_sheet.no_buses")}
-                  </span>
-                </span>
-                <span
-                  className={`line-card__chevron${busesOpen ? " is-open" : ""}`}
-                  aria-hidden="true"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-              </button>
-
-              {busesOpen && buses.length > 0 && (
-                <ul className="line-card__detail bus-list">
-                  {buses.map((bus) => (
-                    <li key={bus.id}>
-                      <BusRow
-                        bus={bus}
-                        needle=""
-                        active={followed === bus.id}
-                        colours={lineColours}
-                        onClick={() => goToBus(bus)}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
           )}
 
           {(results ? results.lines : visible).map((line) => {
@@ -539,99 +431,6 @@ export function LinesSheet({
         </div>
       </div>
     </Modal>
-  );
-}
-
-/**
- * One vehicle in the list.
- *
- * Shared by the search results and the full list so a bus reads the same
- * either way. The line chips are the attribution made visible: until now the
- * only way to learn which line a bus was on was to watch where it drove.
- */
-function BusRow({
-  bus,
-  needle,
-  active,
-  colours,
-  onClick,
-}: {
-  bus: LiveBus;
-  needle: string;
-  active: boolean;
-  colours: Map<string, string>;
-  onClick: () => void;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <button
-      type="button"
-      className={"bus-row" + (active ? " is-active" : "")}
-      aria-current={active ? "true" : undefined}
-      onClick={onClick}
-    >
-      <span
-        className={`bus-row__glyph is-${bus.freshness}`}
-        aria-hidden="true"
-      >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C8 2 4 2.5 4 6v9.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h2l2-2h4l2 2h2v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V6c0-3.5-4-4-8-4z" />
-          <path
-            d="M7.5 15c.83 0 1.5-.67 1.5-1.5S8.33 12 7.5 12 6 12.67 6 13.5 6.67 15 7.5 15zM16.5 15c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5-1.5.67-1.5 1.5.67 1.5 1.5 1.5zM18 6H6v5h12V6z"
-            fill="var(--surface)"
-          />
-        </svg>
-      </span>
-      <span className="bus-row__text">
-        <span className="bus-row__name">
-          <Marked text={bus.name} needle={needle} />
-        </span>
-        {bus.lines.length > 0 && (
-          <span className="stop-list__changes">
-            {bus.lines.slice(0, bus.declared ? 1 : 3).map((line) => (
-              <span
-                key={line}
-                className={
-                  "stop-list__chip" + (bus.declared ? "" : " is-inferred")
-                }
-                style={
-                  bus.declared
-                    ? { background: colours.get(line) ?? FALLBACK_LINE_COLOUR }
-                    : {
-                        color: colours.get(line) ?? FALLBACK_LINE_COLOUR,
-                        borderColor: colours.get(line) ?? FALLBACK_LINE_COLOUR,
-                      }
-                }
-                title={
-                  bus.declared
-                    ? undefined
-                    : t("lines_sheet.line_inferred", { line })
-                }
-              >
-                {line}
-              </span>
-            ))}
-          </span>
-        )}
-      </span>
-      <span className="bus-row__state">
-        {active && (
-          <span className="bus-row__following">{t("lines_sheet.following")}</span>
-        )}
-        {bus.freshness === "stale" ? (
-          <span className="bus-row__stale">
-            {t("bus.last_seen", { age: formatAge(bus.age) })}
-          </span>
-        ) : bus.speed >= 3 ? (
-          <span className="bus-row__speed">
-            {Math.round(bus.speed)} {t("bus.kmh")}
-          </span>
-        ) : (
-          <span className="bus-row__idle">{t("bus.stopped")}</span>
-        )}
-      </span>
-    </button>
   );
 }
 

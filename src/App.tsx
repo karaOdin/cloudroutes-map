@@ -31,6 +31,7 @@ import {
   mapInsets,
 } from "./services/map-insets.ts";
 import { LinesSheet } from "./components/LinesSheet.tsx";
+import { BusesSheet } from "./components/BusesSheet.tsx";
 import {
   FitNetworkControl,
   TileReadyFlag,
@@ -647,6 +648,7 @@ function App() {
 
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isLinesOpen, setIsLinesOpen] = useState(false);
+  const [isBusesOpen, setIsBusesOpen] = useState(false);
   const [location, setLocation] = useState<[number, number] | null>(null);
   const [displayLocation, setDisplayLocation] = useState(false);
   const [routeData, setRouteData] = useState<RouteData | null>(null);
@@ -841,6 +843,23 @@ function App() {
           </svg>
         </button>
 
+        <button
+          type="button"
+          className="control-button"
+          onClick={() => setIsBusesOpen(true)}
+          aria-label={t("buses_sheet.title")}
+          aria-haspopup="dialog"
+          aria-expanded={isBusesOpen}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2C8 2 4 2.5 4 6v9.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h2l2-2h4l2 2h2v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V6c0-3.5-4-4-8-4z" />
+            <path
+              d="M7.5 15c.83 0 1.5-.67 1.5-1.5S8.33 12 7.5 12 6 12.67 6 13.5 6.67 15 7.5 15zM16.5 15c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5-1.5.67-1.5 1.5.67 1.5 1.5 1.5zM18 6H6v5h12V6z"
+              fill="var(--surface)"
+            />
+          </svg>
+        </button>
+
         <MapStyleControl />
         <FitNetworkControl />
 
@@ -890,6 +909,8 @@ function App() {
       </Modal>
 
       <LinesSheet isOpen={isLinesOpen} onClose={() => setIsLinesOpen(false)} />
+
+      <BusesSheet isOpen={isBusesOpen} onClose={() => setIsBusesOpen(false)} />
     </MapContainer>
   );
 }

@@ -119,8 +119,8 @@
     "stop": "Arrêter le suivi"
   },
   "lines_sheet": {
-    "title": "Lignes, arrêts et bus",
-    "search": "Chercher une ligne, un arrêt ou un bus",
+    "title": "Lignes et arrêts",
+    "search": "Chercher une ligne ou un arrêt",
     "none": "Aucun résultat",
     "stops_count": "{{count}} arrêts",
     "no_stops": "Aucun arrêt listé",
@@ -128,10 +128,13 @@
     "working_out_order": "Calcul de l'ordre des arrêts…",
     "reverse": "Inverser",
     "stops_found": "{{count}} arrêts",
-    "lines_found": "{{count}} lignes",
-    "buses": "Bus",
-    "buses_count": "{{count}} bus",
-    "buses_found": "{{count}} bus",
+    "lines_found": "{{count}} lignes"
+  },
+  "buses_sheet": {
+    "title": "Bus",
+    "search": "Chercher un bus ou une ligne",
+    "count": "{{count}} bus",
+    "found": "{{count}} bus",
     "no_buses": "Aucun bus ne transmet",
     "following": "Suivi",
     "line_inferred": "Semble être {{line}} — d’après son trajet"
