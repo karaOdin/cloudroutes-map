@@ -17,7 +17,6 @@ import { useVehicleLines } from "../../hooks/use-vehicle-lines.ts";
 export function AllDevicePositionMarkers() {
   const [positions, devices] = useDevicePosition();
   const now = useNow();
-  const focusedDeviceIds = useFocusedDeviceIds();
   const devicePaths = useDevicePaths();
   const routePoints = useMemo(
     () => devicePaths.all.map((line) => line.points),
@@ -25,6 +24,7 @@ export function AllDevicePositionMarkers() {
   );
   const zoom = useMapZoom();
   const vehicleLines = useVehicleLines(positions?.data, devices?.data);
+  const focusedDeviceIds = useFocusedDeviceIds(vehicleLines);
   const spiderfy = useSpiderfy();
   const toggleFollow = useFollowStore((state) => state.toggleFollow);
   const routeLines = useRouteStore((state) => state.routeLines);
@@ -55,6 +55,12 @@ export function AllDevicePositionMarkers() {
 
     const device = known ?? unknownDevice(position.deviceId);
 
+      // A focused line should show that line. Holding the rest back at a
+      // quarter opacity left a wash of ghost markers over the whole map —
+      // still drawn, still overlapping, still obscuring the buses actually
+      // being looked for — so they are not drawn at all.
+    if (focusedDeviceIds && !focusedDeviceIds.has(device.id)) continue;
+
     // Traccar keeps serving the last known fix forever. A vehicle that has
     // not reported for half an hour is not where this says it is, so it is
     // not drawn at all rather than drawn as if it were live.
@@ -70,7 +76,7 @@ export function AllDevicePositionMarkers() {
       id: device.id,
       lat: position.latitude,
       lng: position.longitude,
-      focused: !!focusedDeviceIds && focusedDeviceIds.has(device.uniqueId),
+      focused: !!focusedDeviceIds && focusedDeviceIds.has(device.id),
     })),
     zoom
   );
@@ -91,8 +97,6 @@ export function AllDevicePositionMarkers() {
       freshness={freshness}
       age={busPositionAge(device, position, now)}
       dimmed={
-        (!!focusedDeviceIds && !focusedDeviceIds.has(device.uniqueId)) ||
-        // A journey is on the map and this vehicle is not part of it.
         // A journey is on the map and this vehicle is on none of its lines.
         (!!routeLines &&
           !(vehicleLines.get(device.id)?.lines ?? []).some((line) =>

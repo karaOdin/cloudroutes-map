@@ -25,7 +25,6 @@ export function LineOnlyDevicePositionMarkers() {
   const filters = useFilterStore((state) => state.filters);
   const [positions, devices] = useDevicePosition();
   const now = useNow();
-  const focusedDeviceIds = useFocusedDeviceIds();
   const devicePaths = useDevicePaths();
   const routePoints = useMemo(
     () => devicePaths.all.map((line) => line.points),
@@ -37,6 +36,7 @@ export function LineOnlyDevicePositionMarkers() {
   const routeLines = useRouteStore((state) => state.routeLines);
   const { data: lines } = useLines();
   const vehicleLines = useVehicleLines(positions?.data, devices?.data);
+  const focusedDeviceIds = useFocusedDeviceIds(vehicleLines);
 
   useLivePositions();
 
@@ -59,6 +59,12 @@ export function LineOnlyDevicePositionMarkers() {
 
     if (!position) continue;
 
+      // A focused line should show that line. Holding the rest back at a
+      // quarter opacity left a wash of ghost markers over the whole map —
+      // still drawn, still overlapping, still obscuring the buses actually
+      // being looked for — so they are not drawn at all.
+    if (focusedDeviceIds && !focusedDeviceIds.has(device.id)) continue;
+
     // A fix this old is misleading, not useful.
     const freshness = busFreshness(device, position, now);
 
@@ -72,7 +78,7 @@ export function LineOnlyDevicePositionMarkers() {
       id: device.id,
       lat: position.latitude,
       lng: position.longitude,
-      focused: !!focusedDeviceIds && focusedDeviceIds.has(device.uniqueId),
+      focused: !!focusedDeviceIds && focusedDeviceIds.has(device.id),
     })),
     zoom
   );
@@ -93,8 +99,6 @@ export function LineOnlyDevicePositionMarkers() {
       freshness={freshness}
       age={busPositionAge(device, position, now)}
       dimmed={
-        (!!focusedDeviceIds && !focusedDeviceIds.has(device.uniqueId)) ||
-        // A journey is on the map and this vehicle is not part of it.
         // A journey is on the map and this vehicle is on none of its lines.
         (!!routeLines &&
           !(vehicleLines.get(device.id)?.lines ?? []).some((line) =>
