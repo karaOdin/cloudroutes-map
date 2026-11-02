@@ -15,7 +15,7 @@ import {
 } from "leaflet";
 import { useTranslation } from "react-i18next";
 import { busIcon } from "../../icons.ts";
-import { mapInsets } from "../../services/map-insets.ts";
+import { mapInsets, panToVisible } from "../../services/map-insets.ts";
 import { BusFreshness, capitalize, formatAge } from "../../helpers.ts";
 import { tidyVehicleName } from "./bus-labels.ts";
 import {
@@ -301,14 +301,17 @@ function BusMarkerComponent({
     return () => cancelAnimationFrame(frame);
   }, [latitude, longitude, path, routes, turnTo]);
 
-  // Keep a followed vehicle in view. `panTo` rather than `setView`, so the
-  // user's own zoom is left alone — following should not fight them.
+  // Keep a followed vehicle where it can be seen. A pan rather than a
+  // setView, so the user's own zoom is left alone — following should not
+  // fight them — and aimed at the middle of the visible map rather than the
+  // middle of the element, which is behind the drawer the bus was very
+  // likely chosen from.
   const isFollowed = device.id !== undefined && followed === device.id;
 
   useEffect(() => {
     if (!isFollowed) return;
 
-    map.panTo([latitude, longitude], { animate: true });
+    panToVisible(map, [latitude, longitude]);
   }, [isFollowed, latitude, longitude, map]);
 
 

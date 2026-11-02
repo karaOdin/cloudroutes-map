@@ -48,14 +48,10 @@ export function insetPadding(edge = 36) {
 }
 
 /**
- * Fly somewhere so it lands in the middle of what can actually be seen,
- * rather than the middle of the map element.
+ * Where the map must be centred for `target` to sit in the middle of what can
+ * actually be seen, rather than the middle of the map element.
  */
-export function flyToVisible(
-  map: LeafletMap,
-  target: LatLngExpression,
-  zoom: number
-) {
+function centreFor(map: LeafletMap, target: LatLngExpression, zoom: number) {
   const { top, bottom } = mapInsets();
   const size = map.getSize();
   const visibleHeight = Math.max(size.y - top - bottom, 80);
@@ -64,5 +60,26 @@ export function flyToVisible(
     .project(target, zoom)
     .add(size.divideBy(2).subtract(wanted));
 
-  map.flyTo(map.unproject(centre, zoom), zoom);
+  return map.unproject(centre, zoom);
+}
+
+/** Fly somewhere so it lands where it can be seen. */
+export function flyToVisible(
+  map: LeafletMap,
+  target: LatLngExpression,
+  zoom: number
+) {
+  map.flyTo(centreFor(map, target, zoom), zoom);
+}
+
+/**
+ * Pan so it lands where it can be seen, at the zoom already in use.
+ *
+ * For following a vehicle: a plain `panTo` aims at the centre of the map
+ * element, which is behind the drawer whenever one is open and behind the
+ * host's search bar at the top. Choosing a bus from the list and watching it
+ * slide under the sheet you chose it from is the whole problem.
+ */
+export function panToVisible(map: LeafletMap, target: LatLngExpression) {
+  map.panTo(centreFor(map, target, map.getZoom()), { animate: true });
 }
