@@ -1,7 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useMap } from "react-leaflet";
 import { useTranslation } from "react-i18next";
-import { latLng, latLngBounds, LatLng, LatLngExpression } from "leaflet";
+import {
+  DomEvent,
+  latLng,
+  latLngBounds,
+  LatLng,
+  LatLngExpression,
+} from "leaflet";
 import { useLines } from "@cloudroutes/query/lines";
 import { Line } from "@cloudroutes/core/lines";
 import { insetPadding } from "../services/map-insets.ts";
@@ -32,7 +38,37 @@ export function LinesCarousel({ hidden = false }: { hidden?: boolean }) {
   const focusedLine = useFocusStore((state) => state.focusedLine);
   const toggleFocus = useFocusStore((state) => state.toggleFocus);
   const lineColours = useLineColours();
-  const strip = useRef<HTMLDivElement>(null);
+  const strip = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * Let a sideways swipe scroll the chips instead of dragging the map.
+   *
+   * Leaflet begins a map drag from a pointer press anywhere inside its
+   * container, and this strip is inside it, so a swipe across the chips
+   * panned the map by 272px and left the strip exactly where it was.
+   *
+   * Only the press is held back. `click` still bubbles, so React's own
+   * handlers — and the chip taps — are untouched, and the browser's native
+   * scrolling is driven by `touch-action`, not by propagation.
+   *
+   * A callback ref rather than an effect, because this component renders
+   * nothing until the lines arrive and an effect with no dependencies would
+   * have run against a node that did not exist yet.
+   */
+  const attach = useCallback((element: HTMLDivElement | null) => {
+    strip.current = element;
+
+    if (!element) return;
+
+    const hold = (event: Event) => event.stopPropagation();
+
+    ["pointerdown", "mousedown", "touchstart"].forEach((type) =>
+      element.addEventListener(type, hold)
+    );
+
+    // Wheel and trackpad, which Leaflet would otherwise read as a zoom.
+    DomEvent.disableScrollPropagation(element);
+  }, []);
 
   // A chip chosen from the drawer, or one scrolled out of sight, has to come
   // back into view or the strip contradicts the map.
@@ -61,7 +97,7 @@ export function LinesCarousel({ hidden = false }: { hidden?: boolean }) {
   };
 
   return (
-    <div className="line-strip" ref={strip}>
+    <div className="line-strip" ref={attach}>
       <div
         className="line-strip__track"
         role="group"
