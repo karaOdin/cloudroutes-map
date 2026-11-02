@@ -59,11 +59,20 @@ export function LineOnlyDevicePositionMarkers() {
 
     if (!position) continue;
 
-      // A focused line should show that line. Holding the rest back at a
-      // quarter opacity left a wash of ghost markers over the whole map —
-      // still drawn, still overlapping, still obscuring the buses actually
-      // being looked for — so they are not drawn at all.
+    // A focused line, or a journey drawn on the map, shows that service. The
+    // rest used to be held back at a quarter opacity, which left a wash of
+    // ghost markers over everything — still drawn, still overlapping, still
+    // obscuring the buses being looked for — so they are not drawn at all.
     if (focusedDeviceIds && !focusedDeviceIds.has(device.id)) continue;
+
+    if (
+      routeLines &&
+      !(vehicleLines.get(device.id)?.lines ?? []).some((line) =>
+        routeLines.includes(line)
+      )
+    ) {
+      continue;
+    }
 
     // A fix this old is misleading, not useful.
     const freshness = busFreshness(device, position, now);
@@ -98,13 +107,6 @@ export function LineOnlyDevicePositionMarkers() {
       position={position}
       freshness={freshness}
       age={busPositionAge(device, position, now)}
-      dimmed={
-        // A journey is on the map and this vehicle is on none of its lines.
-        (!!routeLines &&
-          !(vehicleLines.get(device.id)?.lines ?? []).some((line) =>
-            routeLines.includes(line)
-          ))
-      }
       path={devicePaths.byDevice.get(device.uniqueId)}
       routes={routePoints}
       labelled={labelled.has(device.id)}

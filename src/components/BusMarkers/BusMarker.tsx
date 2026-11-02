@@ -45,8 +45,6 @@ type BusMarkerProps = {
   freshness?: BusFreshness;
   /** Age of that fix in ms, shown in the popup when the vehicle is stale. */
   age?: number;
-  /** True when another line is focused and this vehicle is not on it. */
-  dimmed?: boolean;
   /** Waypoints of the line this vehicle is assigned, if the tenant links them. */
   path?: LatLng[];
   /** Every line's waypoints, to match a vehicle to a road when it is not. */
@@ -92,7 +90,6 @@ function BusMarkerComponent({
   position,
   freshness = "live",
   age = NaN,
-  dimmed = false,
   path,
   routes = EMPTY_ROUTES,
   labelled = false,
@@ -325,8 +322,8 @@ function BusMarkerComponent({
     if (!element) return;
 
     element.style.setProperty("--bus-label", JSON.stringify(busName));
-    element.classList.toggle("is-labelled", labelled && !dimmed);
-  }, [busName, labelled, dimmed, isStale]);
+    element.classList.toggle("is-labelled", labelled);
+  }, [busName, labelled, isStale]);
 
   // Fan this vehicle out of a pile-up. The translation is on the inner
   // container, so Leaflet still has the marker at the reported coordinate and
@@ -395,7 +392,6 @@ function BusMarkerComponent({
       position={target}
       icon={busIcon(isStale)}
       title={busName}
-      opacity={dimmed ? 0.25 : 1}
       eventHandlers={{
         click: () => {
           if (device.id === undefined) return;
@@ -412,7 +408,7 @@ function BusMarkerComponent({
           if (onTap(device.id) === "opened") markerRef.current?.closePopup();
         },
       }}
-      zIndexOffset={spider ? 1400 : dimmed ? 400 : isStale ? 600 : 1000}
+      zIndexOffset={spider ? 1400 : isStale ? 600 : 1000}
     >
       <Popup
         // Leaflet pans a popup into view on open, and without this it panned

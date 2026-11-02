@@ -10,7 +10,6 @@ type StopMarkerProps = {
     coordinate: [number, number];
     lines: Array<{ name: string; color: string }>;
   };
-  dimmed: boolean;
   /** True while this is the stop the map was asked to show. */
   highlighted: boolean;
   onClick: () => void;
@@ -25,7 +24,6 @@ type StopMarkerProps = {
  */
 export function StopMarker({
   stop,
-  dimmed,
   highlighted,
   onClick,
 }: StopMarkerProps) {
@@ -54,7 +52,6 @@ export function StopMarker({
       position={stop.coordinate}
       icon={busStopIconFor(stop.lines)}
       title={stop.title}
-      opacity={dimmed ? 0.2 : 1}
       eventHandlers={{ click: onClick }}
     />
   );

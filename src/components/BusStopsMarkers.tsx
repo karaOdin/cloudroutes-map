@@ -100,13 +100,20 @@ export function BusStopsMarkers() {
     setTimeout(() => setSelectedStop(null), 300); // Wait for animation
   };
 
+  // A focused line shows that line. Stops it does not serve used to be drawn
+  // at a fifth opacity, which left the map speckled with ghosts around the
+  // one route being looked at — and now that the vehicles off that line are
+  // not drawn at all, half-filtering the stops only made the map look broken.
+  const shownStops = filteredStops.filter((stop) =>
+    servesFocusedLine(stop, focusedLine)
+  );
+
   return (
     <>
-      {filteredStops.map((stop) => (
+      {shownStops.map((stop) => (
         <StopMarker
           key={stop.id}
           stop={stop}
-          dimmed={!servesFocusedLine(stop, focusedLine)}
           highlighted={highlighted === stop.id}
           onClick={() => {
             highlight(stop.id);
