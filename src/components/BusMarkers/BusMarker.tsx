@@ -18,6 +18,10 @@ import { busIcon } from "../../icons.ts";
 import { mapInsets } from "../../services/map-insets.ts";
 import { BusFreshness, capitalize, formatAge } from "../../helpers.ts";
 import { tidyVehicleName } from "./bus-labels.ts";
+import {
+  FALLBACK_LINE_COLOUR,
+  useLineColours,
+} from "../../hooks/use-line-colours.ts";
 import { useFollowStore } from "../../hooks/use-follow-store.ts";
 import {
   MeasuredPath,
@@ -51,6 +55,9 @@ type BusMarkerProps = {
   labelled?: boolean;
   /** Screen-space nudge applied when an overlapping group has been opened. */
   spider?: { dx: number; dy: number };
+  /** Lines this vehicle runs, and whether that was stated or worked out. */
+  lines?: string[];
+  linesDeclared?: boolean;
   /**
    * What a tap means here — the layer decides, since it knows about pile-ups.
    * Answering "opened" means the tap fanned a group out rather than choosing
@@ -90,6 +97,8 @@ function BusMarkerComponent({
   routes = EMPTY_ROUTES,
   labelled = false,
   spider,
+  lines,
+  linesDeclared = false,
   onTap,
 }: BusMarkerProps) {
   const { t } = useTranslation();
@@ -114,6 +123,7 @@ function BusMarkerComponent({
     () => [latitude, longitude],
     [latitude, longitude]
   );
+  const lineColours = useLineColours();
   const busCategory = capitalize(device?.category || "bus");
   const busName = tidyVehicleName(device?.name ?? "Unknown");
   const isStale = freshness === "stale";
@@ -430,6 +440,38 @@ function BusMarkerComponent({
             <span>
               {busCategory} - {busName}
             </span>
+            {/* Which line this bus runs. Stated by the operator — from the
+                tenant's records or from the name on the tracker — is drawn
+                solid; worked out from where it is driving is drawn as an
+                outline, so a reading never passes for a fact. */}
+            {lines && lines.length > 0 && (
+              <span className="bus-popup__lines">
+                {lines.slice(0, linesDeclared ? 1 : 3).map((line) => (
+                  <span
+                    key={line}
+                    className={
+                      "stop-list__chip" +
+                      (linesDeclared ? "" : " is-inferred")
+                    }
+                    style={
+                      linesDeclared
+                        ? {
+                            background:
+                              lineColours.get(line) ?? FALLBACK_LINE_COLOUR,
+                          }
+                        : {
+                            color:
+                              lineColours.get(line) ?? FALLBACK_LINE_COLOUR,
+                            borderColor:
+                              lineColours.get(line) ?? FALLBACK_LINE_COLOUR,
+                          }
+                    }
+                  >
+                    {line}
+                  </span>
+                ))}
+              </span>
+            )}
             {isStale && (
               <span className="bus-popup__stale">
                 {t("bus.last_seen", { age: formatAge(age) })}

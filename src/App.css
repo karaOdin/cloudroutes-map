@@ -4489,3 +4489,142 @@ body:has(.route-results-wrapper) .leaflet-popup {
   transform: translateX(-50%) scale(1.08);
   box-shadow: var(--shadow-md);
 }
+
+/* ── Buses as a list ──────────────────────────────────────────────────────
+   The map answers "which bus is near me"; it cannot answer "where is
+   04/H017". Below zoom 16 there are no labels at all, so a named vehicle was
+   unfindable without panning and hoping. These rows follow the stop rows
+   exactly — same hit area, same active treatment — because tapping one does
+   the same kind of thing: it takes you there and says which one you picked. */
+
+.bus-list {
+  margin: 0;
+  padding: 2px 0 0;
+  list-style: none;
+  max-height: 46vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.bus-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 8px 8px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  cursor: pointer;
+  text-align: start;
+  font: inherit;
+  color: var(--text);
+}
+
+.bus-row:hover {
+  background: var(--surface-muted);
+}
+
+.bus-row:active {
+  transform: scale(0.99);
+}
+
+.bus-row__glyph {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--brand-50);
+  color: var(--brand-600);
+}
+
+/* Freshness, carried the same way the markers carry it: a vehicle that has
+   stopped reporting is drawn grey rather than quietly left looking live. */
+.bus-row__glyph.is-stale {
+  background: var(--surface-muted);
+  color: var(--text-subtle);
+}
+
+.bus-row__glyph.is-head {
+  background: var(--brand-600);
+  color: #fff;
+}
+
+.bus-row__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bus-row__name {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Vehicle names are latin codes inside an Arabic interface, so they must
+     not be reordered by the paragraph direction. */
+  unicode-bidi: plaintext;
+}
+
+.bus-row__state {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-subtle);
+}
+
+.bus-row__speed {
+  color: var(--brand-600);
+}
+
+.bus-row__following {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--brand-600);
+  color: #fff;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+/* The vehicle the map is tracking. Same treatment as the active stop, so the
+   drawer reads consistently whichever kind of thing you tapped. */
+.bus-row.is-active {
+  background: var(--brand-50);
+  box-shadow: inset 0 0 0 1px var(--brand-200);
+}
+
+.bus-row.is-active .bus-row__name {
+  font-weight: 700;
+  color: var(--brand-700);
+}
+
+.bus-row.is-active:hover {
+  background: var(--brand-50);
+}
+
+/* A line we worked out from where the bus is driving, not one the operator
+   stated. Drawn as an outline rather than a solid chip so a reading of the
+   road never passes for a fact about the service. */
+.stop-list__chip.is-inferred {
+  background: none;
+  border: 1px dashed currentColor;
+  opacity: 0.85;
+}
+
+.bus-popup__lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}

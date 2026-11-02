@@ -24,7 +24,7 @@ export function AllDevicePositionMarkers() {
     [devicePaths]
   );
   const zoom = useMapZoom();
-  const vehicleLines = useVehicleLines(positions?.data);
+  const vehicleLines = useVehicleLines(positions?.data, devices?.data);
   const spiderfy = useSpiderfy();
   const toggleFollow = useFollowStore((state) => state.toggleFollow);
   const routeLines = useRouteStore((state) => state.routeLines);
@@ -95,7 +95,7 @@ export function AllDevicePositionMarkers() {
         // A journey is on the map and this vehicle is not part of it.
         // A journey is on the map and this vehicle is on none of its lines.
         (!!routeLines &&
-          !(vehicleLines.get(device.id) ?? []).some((line) =>
+          !(vehicleLines.get(device.id)?.lines ?? []).some((line) =>
             routeLines.includes(line)
           ))
       }
@@ -103,6 +103,8 @@ export function AllDevicePositionMarkers() {
       routes={routePoints}
       labelled={labelled.has(device.id)}
       spider={spiderfy.offsets.get(device.id)}
+      lines={vehicleLines.get(device.id)?.lines}
+      linesDeclared={vehicleLines.get(device.id)?.declared}
       onTap={(id) => {
         const action = spiderfy.handleTap(id);
 

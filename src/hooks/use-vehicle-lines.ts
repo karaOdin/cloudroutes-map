@@ -1,8 +1,13 @@
 import { useMemo, useRef } from "react";
 import { latLng } from "leaflet";
-import { Position } from "../types.ts";
+import { Device, Position } from "../types.ts";
 import { distanceToPath } from "../services/route-path.ts";
 import { useDevicePaths } from "./use-device-paths.ts";
+import { useDeclaredBuses } from "./use-declared-buses.ts";
+import {
+  lineFromDeviceName,
+  lineNumbers,
+} from "../services/line-in-name.ts";
 
 /**
  * Which line each vehicle is driving on, worked out from where it is.
@@ -36,18 +41,65 @@ const RECHECK_AFTER_M = 25;
 
 type Remembered = { lat: number; lng: number; lines: string[] };
 
+/**
+ * What a vehicle's line attribution rests on.
+ *
+ * `declared` is the tenant's own record, matched through the device's
+ * Identifier. `driven` is inferred from where the bus is, which is a reading
+ * of the road rather than a statement about the service — so the two must not
+ * be presented as the same kind of fact.
+ */
+export type VehicleLines = { lines: string[]; declared: boolean };
+
 export function useVehicleLines(
-  positions: Position[] | undefined
-): Map<number, string[]> {
+  positions: Position[] | undefined,
+  devices?: Device[]
+): Map<number, VehicleLines> {
   const { all } = useDevicePaths();
+  const declared = useDeclaredBuses();
   const remembered = useRef(new Map<number, Remembered>());
 
   return useMemo(() => {
-    const attributed = new Map<number, string[]>();
+    const attributed = new Map<number, VehicleLines>();
 
-    if (!positions || all.length === 0) return attributed;
+    if (!positions) return attributed;
+
+    // A position carries Traccar's numeric id; the tenant's records are keyed
+    // by the device Identifier, so the device list is what joins them.
+    const byId = new Map((devices ?? []).map((device) => [device.id, device]));
+    const byNumber = lineNumbers(all.map((line) => line.name));
 
     for (const position of positions) {
+      // An operator-stated assignment is not improved on by guessing. Where
+      // the records account for this vehicle, that is the answer, and it holds
+      // whether the bus is on its route, at the depot or parked overnight.
+      const device = byId.get(position.deviceId);
+      const stated = device?.uniqueId
+        ? declared.get(device.uniqueId)
+        : undefined;
+
+      if (stated) {
+        attributed.set(position.deviceId, {
+          lines: [stated.line],
+          declared: true,
+        });
+
+        continue;
+      }
+
+      // Nothing in the records, but the operator may have written the line
+      // into the tracker's own name. Also a statement, so also not improved
+      // on by guessing.
+      const named = lineFromDeviceName(device?.name ?? "", byNumber);
+
+      if (named) {
+        attributed.set(position.deviceId, { lines: [named], declared: true });
+
+        continue;
+      }
+
+      if (all.length === 0) continue;
+
       const previous = remembered.current.get(position.deviceId);
       const here = latLng(position.latitude, position.longitude);
 
@@ -59,7 +111,10 @@ export function useVehicleLines(
         latLng(previous.lat, previous.lng).distanceTo(here) < RECHECK_AFTER_M
       ) {
         if (previous.lines.length > 0) {
-          attributed.set(position.deviceId, previous.lines);
+          attributed.set(position.deviceId, {
+            lines: previous.lines,
+            declared: false,
+          });
         }
 
         continue;
@@ -75,9 +130,11 @@ export function useVehicleLines(
         lines: on,
       });
 
-      if (on.length > 0) attributed.set(position.deviceId, on);
+      if (on.length > 0) {
+        attributed.set(position.deviceId, { lines: on, declared: false });
+      }
     }
 
     return attributed;
-  }, [positions, all]);
+  }, [positions, all, devices, declared]);
 }

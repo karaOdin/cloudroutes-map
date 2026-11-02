@@ -12,7 +12,10 @@ import { labelledVehicles } from "./bus-labels.ts";
 import { useSpiderfy } from "../../hooks/use-spiderfy.ts";
 import { useFollowStore } from "../../hooks/use-follow-store.ts";
 import { useRouteStore } from "../../hooks/use-route-store.ts";
-import { useVehicleLines } from "../../hooks/use-vehicle-lines.ts";
+import {
+  useVehicleLines,
+  VehicleLines,
+} from "../../hooks/use-vehicle-lines.ts";
 import { useLines } from "@cloudroutes/query/lines";
 import { Line } from "@cloudroutes/core/lines";
 import { useFilterStore } from "../../hooks/use-filter-store.ts";
@@ -33,7 +36,7 @@ export function LineOnlyDevicePositionMarkers() {
   const toggleFollow = useFollowStore((state) => state.toggleFollow);
   const routeLines = useRouteStore((state) => state.routeLines);
   const { data: lines } = useLines();
-  const vehicleLines = useVehicleLines(positions?.data);
+  const vehicleLines = useVehicleLines(positions?.data, devices?.data);
 
   useLivePositions();
 
@@ -94,7 +97,7 @@ export function LineOnlyDevicePositionMarkers() {
         // A journey is on the map and this vehicle is not part of it.
         // A journey is on the map and this vehicle is on none of its lines.
         (!!routeLines &&
-          !(vehicleLines.get(device.id) ?? []).some((line) =>
+          !(vehicleLines.get(device.id)?.lines ?? []).some((line) =>
             routeLines.includes(line)
           ))
       }
@@ -102,6 +105,8 @@ export function LineOnlyDevicePositionMarkers() {
       routes={routePoints}
       labelled={labelled.has(device.id)}
       spider={spiderfy.offsets.get(device.id)}
+      lines={vehicleLines.get(device.id)?.lines}
+      linesDeclared={vehicleLines.get(device.id)?.declared}
       onTap={(id) => {
         const action = spiderfy.handleTap(id);
 
@@ -118,7 +123,7 @@ function filteredDevicesData(
   lines: Line[],
   filters: MapFilters,
   positions: Position[],
-  vehicleLines: Map<number, string[]>
+  vehicleLines: Map<number, VehicleLines>
 ): Device[] {
   if (filters.line === "none") return [];
   if (filters.line === "all") return devices;
@@ -146,7 +151,7 @@ function filteredDevicesData(
   const byPosition = new Set(
     positions
       .filter((position) =>
-        (vehicleLines.get(position.deviceId) ?? []).some((line) =>
+        (vehicleLines.get(position.deviceId)?.lines ?? []).some((line) =>
           wanted.includes(line)
         )
       )
