@@ -14,7 +14,18 @@ import { useFollowStore } from "../hooks/use-follow-store.ts";
 export function FocusController() {
   const clearFocus = useFocusStore((state) => state.clearFocus);
 
-  useMapEvent("click", () => clearFocus());
+  useMapEvent("click", (event) => {
+    // Controls drawn over the map are not the map. The lines strip is a child
+    // of the map container, so Leaflet sees a tap on a chip as a tap on the
+    // background — and its handler runs before React's, so choosing the line
+    // already focused went "clear it, then re-select it" and the chip could
+    // never be switched off.
+    const target = event.originalEvent?.target as HTMLElement | null;
+
+    if (target?.closest?.(".line-strip")) return;
+
+    clearFocus();
+  });
 
   return null;
 }

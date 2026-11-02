@@ -4628,3 +4628,84 @@ body:has(.route-results-wrapper) .leaflet-popup {
   gap: 4px;
   margin-top: 4px;
 }
+
+/* ── Lines as a strip ─────────────────────────────────────────────────────
+   Focusing a line draws one service and hides everything else, and it was
+   three taps down: open the drawer, expand a card, press "Show on map". Ten
+   to seventeen lines is small enough to simply offer.
+
+   Positioned under whatever the host draws above the WebView, from the same
+   --map-inset-top the control stack reads, and kept clear of the control
+   column on the right. */
+.line-strip {
+  position: absolute;
+  top: calc(var(--map-inset-top, 0px) + 20px + var(--safe-top));
+  inset-inline-start: calc(14px + var(--safe-left));
+  inset-inline-end: calc(84px + var(--safe-right));
+  z-index: var(--z-map-controls);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  /* Leaflet would otherwise read a horizontal flick as a map pan. */
+  touch-action: pan-x;
+}
+
+.line-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.line-strip__track {
+  display: flex;
+  gap: 8px;
+  width: max-content;
+  padding: 2px;
+}
+
+.line-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 42vw;
+  padding: 8px 13px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 10px rgba(8, 47, 73, 0.14);
+  transition:
+    transform var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+
+.line-chip:active {
+  transform: scale(0.96);
+}
+
+.line-chip.is-active {
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(8, 47, 73, 0.3);
+}
+
+.line-chip__swatch {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+/* Constantine names its lines by route — "محطة زعموش*باب القنطرة - محطة شعر
+   الديب" — so a chip has to be allowed to run out of room rather than force
+   every other tenant's "Line 10" into a wide one. */
+.line-chip__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  unicode-bidi: plaintext;
+}

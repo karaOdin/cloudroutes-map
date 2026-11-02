@@ -32,6 +32,7 @@ import {
 } from "./services/map-insets.ts";
 import { LinesSheet } from "./components/LinesSheet.tsx";
 import { BusesSheet } from "./components/BusesSheet.tsx";
+import { LinesCarousel } from "./components/LinesCarousel.tsx";
 import {
   FitNetworkControl,
   TileReadyFlag,
@@ -802,6 +803,8 @@ function App() {
       <FollowBanner />
 
       {/* Map Controls - position lower when in WebView to avoid search bar */}
+      <LinesCarousel hidden={isFiltersOpen || isLinesOpen || isBusesOpen} />
+
       <div
         className={clsx("map-controls", {
           "map-controls-webview": isInWebView,
