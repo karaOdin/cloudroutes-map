@@ -1,5 +1,8 @@
+import { useMemo } from "react";
 import Modal from "react-modal";
 import { useTranslation } from "react-i18next";
+import { useArrivals } from "../hooks/use-arrivals.ts";
+import { Arrival } from "../services/arrivals.ts";
 
 type BusStopModalProps = {
   isOpen: boolean;
@@ -25,6 +28,22 @@ export function BusStopModal({
 }: BusStopModalProps) {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
+
+  // Hooks cannot sit behind the early return below, and the stop identity has
+  // to be stable or every render would rebuild the projections.
+  const target = useMemo(
+    () =>
+      stop
+        ? {
+            lat: stop.coordinate[0],
+            lng: stop.coordinate[1],
+            lines: stop.lines.map((line) => line.name),
+          }
+        : null,
+    [stop]
+  );
+  const arrivals = useArrivals(target);
+  const colours = new Map(stop?.lines.map((line) => [line.name, line.color]));
 
   if (!stop) return null;
 
@@ -175,6 +194,38 @@ export function BusStopModal({
             </ul>
           </div>
 
+          {/* Next buses.
+              A measurement first — road between the bus and this stop, and
+              the stops in between — with a time band after it. Never a single
+              promised minute: see services/arrivals.ts. */}
+          <div className="bus-stop-section">
+            <div className="bus-stop-section-title">
+              <div className="bus-stop-section-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                  <path d="M12 2C8 2 4 2.5 4 6v9.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h2l2-2h4l2 2h2v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V6c0-3.5-4-4-8-4zM7.5 15a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm9 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM18 11H6V6h12v5z" />
+                </svg>
+              </div>
+              <span>{t("arrivals.title")}</span>
+            </div>
+
+            {arrivals.length === 0 ? (
+              <p className="arrivals__none">{t("arrivals.none")}</p>
+            ) : (
+              <>
+                <ul className="arrivals">
+                  {arrivals.slice(0, 4).map((arrival) => (
+                    <ArrivalRow
+                      key={arrival.deviceId}
+                      arrival={arrival}
+                      colour={colours.get(arrival.line)}
+                    />
+                  ))}
+                </ul>
+                <p className="arrivals__caveat">{t("arrivals.caveat")}</p>
+              </>
+            )}
+          </div>
+
           {/* Actions */}
           {/* <div className="bus-stop-actions">
             <button
@@ -234,5 +285,60 @@ export function BusStopModal({
         </div>
       </div>
     </Modal>
+  );
+}
+
+/**
+ * One approaching bus.
+ *
+ * The distance leads because it is the part that was measured. The time is a
+ * range and is shown as one; where the last fix is too old to support even a
+ * range, it is left out rather than guessed.
+ */
+function ArrivalRow({
+  arrival,
+  colour,
+}: {
+  arrival: Arrival;
+  colour?: string;
+}) {
+  const { t } = useTranslation();
+  const km = arrival.metres >= 1000;
+
+  return (
+    <li className="arrival">
+      <span
+        className={"arrival__line" + (arrival.declared ? "" : " is-inferred")}
+        style={
+          arrival.declared
+            ? { background: colour }
+            : { color: colour, borderColor: colour }
+        }
+      >
+        {arrival.line}
+      </span>
+      <span className="arrival__text">
+        <span className="arrival__name">{arrival.name}</span>
+        <span className="arrival__distance">
+          {arrival.stopsAway > 0 &&
+            `${t("arrivals.stops_away", { count: arrival.stopsAway })} · `}
+          {km
+            ? `${(arrival.metres / 1000).toFixed(1)} km`
+            : `${Math.round(arrival.metres / 10) * 10} m`}
+        </span>
+      </span>
+      <span className="arrival__when">
+        {arrival.minutes ? (
+          <>
+            <span className="arrival__minutes">
+              {arrival.minutes.from}–{arrival.minutes.to}
+            </span>
+            <span className="arrival__unit">{t("arrivals.min")}</span>
+          </>
+        ) : (
+          <span className="arrival__unknown">{t("arrivals.no_time")}</span>
+        )}
+      </span>
+    </li>
   );
 }

@@ -4709,3 +4709,111 @@ body:has(.route-results-wrapper) .leaflet-popup {
   text-overflow: ellipsis;
   unicode-bidi: plaintext;
 }
+
+/* ── Next buses at a stop ─────────────────────────────────────────────────
+   The distance is the measured part and reads first; the time is a range and
+   is drawn as one. A row whose fix is too old says so rather than showing a
+   number nobody should act on. */
+.arrivals {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.arrival {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 2px;
+}
+
+.arrival + .arrival {
+  border-top: 1px solid var(--border);
+}
+
+.arrival__line {
+  flex: none;
+  min-width: 52px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: var(--brand-600);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: plaintext;
+}
+
+/* Worked out from where the bus is driving, not stated by the operator. */
+.arrival__line.is-inferred {
+  background: none;
+  border-style: dashed;
+}
+
+.arrival__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.arrival__name {
+  font-size: 13.5px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: plaintext;
+}
+
+.arrival__distance {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.arrival__when {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.arrival__minutes {
+  font-size: 17px;
+  font-weight: 750;
+  color: var(--brand-600);
+  font-variant-numeric: tabular-nums;
+}
+
+.arrival__unit {
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--text-muted);
+}
+
+.arrival__unknown,
+.arrival__none {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.arrivals__none {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.arrivals__caveat {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--text-subtle);
+}

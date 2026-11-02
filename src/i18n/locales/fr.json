@@ -138,5 +138,13 @@
     "no_buses": "Aucun bus ne transmet",
     "following": "Suivi",
     "line_inferred": "Semble être {{line}} — d’après son trajet"
+  },
+  "arrivals": {
+    "title": "Prochains bus",
+    "none": "Aucun bus n’approche de cet arrêt pour le moment",
+    "caveat": "Estimation d’après la distance sur l’itinéraire",
+    "min": "min",
+    "no_time": "position ancienne",
+    "stops_away": "à {{count}} arrêts"
   }
 }

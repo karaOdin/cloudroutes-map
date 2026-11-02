@@ -138,5 +138,13 @@
     "no_buses": "No buses reporting",
     "following": "Following",
     "line_inferred": "Looks like {{line}} — from where it is driving"
+  },
+  "arrivals": {
+    "title": "Next buses",
+    "none": "No bus is approaching this stop right now",
+    "caveat": "Estimated from distance along the route",
+    "min": "min",
+    "no_time": "no recent fix",
+    "stops_away": "{{count}} stops away"
   }
 }

@@ -29,6 +29,8 @@ export type LiveBus = {
   age: number;
   /** km/h. Traccar reports knots. */
   speed: number;
+  /** Compass heading in degrees, used to tell the two directions apart. */
+  course: number;
   /** Lines this vehicle is attributed to, declared or driven. */
   lines: string[];
   /** True when the tenant's records name that line, rather than geometry. */
@@ -86,6 +88,7 @@ export function useLiveBuses(): LiveBus[] {
         freshness,
         age: busPositionAge(device, position, now),
         speed: Math.max(0, (position.speed ?? 0) * KNOTS_TO_KMH),
+        course: position.course ?? 0,
         lines: vehicleLines.get(device.id)?.lines ?? [],
         declared: vehicleLines.get(device.id)?.declared ?? false,
       });
