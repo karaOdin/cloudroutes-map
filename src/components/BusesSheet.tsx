@@ -6,6 +6,7 @@ import { flyToVisible } from "../services/map-insets.ts";
 import { formatAge } from "../helpers.ts";
 import { useFollowStore } from "../hooks/use-follow-store.ts";
 import { LiveBus, useLiveBuses } from "../hooks/use-live-buses.ts";
+import { NearbyBus, useNearbyBuses } from "../hooks/use-nearby-buses.ts";
 import {
   FALLBACK_LINE_COLOUR,
   useLineColours,
@@ -38,6 +39,7 @@ export function BusesSheet({
   const lineColours = useLineColours();
   const followed = useFollowStore((state) => state.followed);
   const toggleFollow = useFollowStore((state) => state.toggleFollow);
+  const { buses: nearby, here } = useNearbyBuses();
 
   const needle = query.trim().toLowerCase();
 
@@ -103,6 +105,29 @@ export function BusesSheet({
         </header>
 
         <div className="lines-sheet__body">
+          {/* Nearest by road, not as the crow flies: see use-nearby-buses.ts.
+              Only where the host has told us where the rider is. */}
+          {!needle && here && nearby.length > 0 && (
+            <>
+              <p className="lines-sheet__group">{t("buses_sheet.near_me")}</p>
+              <ul className="bus-list">
+                {nearby.map((bus) => (
+                  <li key={bus.id}>
+                    <BusRow
+                      bus={bus}
+                      needle=""
+                      active={followed === bus.id}
+                      colours={lineColours}
+                      near={bus}
+                      onClick={() => goToBus(bus)}
+                    />
+                  </li>
+                ))}
+              </ul>
+              <p className="lines-sheet__divider" />
+            </>
+          )}
+
           <p className="lines-sheet__group">
             {buses.length === 0
               ? t("buses_sheet.no_buses")
@@ -145,12 +170,15 @@ function BusRow({
   needle,
   active,
   colours,
+  near,
   onClick,
 }: {
   bus: LiveBus;
   needle: string;
   active: boolean;
   colours: Map<string, string>;
+  /** Set in the "near me" list, where distance matters more than speed. */
+  near?: NearbyBus;
   onClick: () => void;
 }) {
   const { t } = useTranslation();
@@ -207,7 +235,22 @@ function BusRow({
         {active && (
           <span className="bus-row__following">{t("buses_sheet.following")}</span>
         )}
-        {bus.freshness === "stale" ? (
+        {near ? (
+          <span
+            className={"bus-row__away" + (near.byRoad ? "" : " is-direct")}
+            title={
+              near.byRoad
+                ? t("buses_sheet.by_road")
+                : t("buses_sheet.direct_line")
+            }
+          >
+            {/* Compared against the rounded value, or 999 m rounds up and
+                shows as "1000 m" beside rows reading "1.1 km". */}
+            {Math.round(near.metres / 10) * 10 >= 1000
+              ? `${(near.metres / 1000).toFixed(1)} km`
+              : `${Math.round(near.metres / 10) * 10} m`}
+          </span>
+        ) : bus.freshness === "stale" ? (
           <span className="bus-row__stale">
             {t("bus.last_seen", { age: formatAge(bus.age) })}
           </span>

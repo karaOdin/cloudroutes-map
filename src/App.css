@@ -4817,3 +4817,24 @@ body:has(.route-results-wrapper) .leaflet-popup {
   font-size: 11px;
   color: var(--text-subtle);
 }
+
+/* Distance to a bus in the "nearest to you" list. Road distance where the
+   router answered; a dashed underline marks the straight-line fallback,
+   because the two are not the same claim. */
+.bus-row__away {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--brand-600);
+  font-variant-numeric: tabular-nums;
+}
+
+.bus-row__away.is-direct {
+  color: var(--text-muted);
+  text-decoration: underline dashed;
+  text-underline-offset: 3px;
+}
+
+.lines-sheet__divider {
+  margin: 10px 2px 0;
+  border-top: 1px solid var(--border);
+}

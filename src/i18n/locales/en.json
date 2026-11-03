@@ -137,7 +137,10 @@
     "found": "{{count}} buses",
     "no_buses": "No buses reporting",
     "following": "Following",
-    "line_inferred": "Looks like {{line}} — from where it is driving"
+    "line_inferred": "Looks like {{line}} — from where it is driving",
+    "near_me": "Nearest to you",
+    "by_road": "Distance by road",
+    "direct_line": "Straight line — the router could not be reached"
   },
   "arrivals": {
     "title": "Next buses",

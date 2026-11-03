@@ -137,7 +137,10 @@
     "found": "{{count}} bus",
     "no_buses": "Aucun bus ne transmet",
     "following": "Suivi",
-    "line_inferred": "Semble être {{line}} — d’après son trajet"
+    "line_inferred": "Semble être {{line}} — d’après son trajet",
+    "near_me": "Les plus proches",
+    "by_road": "Distance par la route",
+    "direct_line": "À vol d’oiseau — routeur injoignable"
   },
   "arrivals": {
     "title": "Prochains bus",

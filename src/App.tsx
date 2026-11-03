@@ -33,6 +33,7 @@ import {
 import { LinesSheet } from "./components/LinesSheet.tsx";
 import { BusesSheet } from "./components/BusesSheet.tsx";
 import { LinesCarousel } from "./components/LinesCarousel.tsx";
+import { useLocationStore } from "./hooks/use-location-store.ts";
 import {
   FitNetworkControl,
   TileReadyFlag,
@@ -652,6 +653,8 @@ function App() {
   const [isBusesOpen, setIsBusesOpen] = useState(false);
   const [location, setLocation] = useState<[number, number] | null>(null);
   const [displayLocation, setDisplayLocation] = useState(false);
+  // Shared, so "near me" can answer without reaching into this component.
+  const setHere = useLocationStore((state) => state.setHere);
   const [routeData, setRouteData] = useState<RouteData | null>(null);
   const setRouteLines = useRouteStore((state) => state.setRouteLines);
   const [appReady, setAppReady] = useState(false);
@@ -685,6 +688,7 @@ function App() {
       // Handle location updates
       if (data.type === "LOCATION_UPDATE" && "latitude" in data) {
         setLocation([data.latitude, data.longitude]);
+        setHere([data.latitude, data.longitude]);
       }
 
       // Handle language changes
@@ -705,12 +709,13 @@ function App() {
       // Legacy support
       if (!data.type && "latitude" in data) {
         setLocation([data.latitude, data.longitude]);
+        setHere([data.latitude, data.longitude]);
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [i18n]);
+  }, [i18n, setHere]);
 
   // Tell the vehicle layers which lines the journey uses, so the buses that
   // are not on it can step back.
