@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import Modal from "react-modal";
 import { useTranslation } from "react-i18next";
 
@@ -36,10 +35,11 @@ export function BusStopModal({
       className="ReactModal__Content"
       overlayClassName="ReactModal__Overlay"
       closeTimeoutMS={300}
+      contentLabel={stop.title}
     >
       <div className={isRTL ? "rtl" : ""}>
         {/* Header */}
-        <div className="bus-stop-modal-header">
+        <header className="bus-stop-modal-header">
           <div className="bus-stop-modal-drag"></div>
           <div className="bus-stop-modal-title-row">
             <div className="bus-stop-modal-icon">
@@ -58,6 +58,7 @@ export function BusStopModal({
             </div>
             <h2 className="bus-stop-modal-title">{stop.title}</h2>
             <button
+              type="button"
               className="bus-stop-modal-close"
               onClick={onClose}
               aria-label={t("filters.close")}
@@ -131,7 +132,7 @@ export function BusStopModal({
               </span>
             </div>
           </div>
-        </div>
+        </header>
 
         {/* Body */}
         <div className="bus-stop-modal-body">
@@ -158,9 +159,9 @@ export function BusStopModal({
                 {t("bus_stop.lines")} ({stop.lines.length})
               </span>
             </div>
-            <div className="bus-lines-horizontal">
+            <ul className="bus-lines-horizontal">
               {stop.lines.map((line, index) => (
-                <div
+                <li
                   key={index}
                   className="bus-line-badge"
                   style={{
@@ -169,9 +170,9 @@ export function BusStopModal({
                   }}
                 >
                   {line.name}
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
 
           {/* Actions */}

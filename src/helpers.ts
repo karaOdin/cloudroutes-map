@@ -23,6 +23,33 @@ export function capitalize(str: string) {
 }
 
 /**
+ * Darkens a hex colour toward black. Used to draw a casing under a coloured
+ * polyline so pale line colours (e.g. #FFFF00, which sits at 1.07:1 against a
+ * light basemap) still read against the map.
+ */
+export function darkenColor(color: string, amount: number = 0.3): string {
+  if (!color.startsWith("#")) return color;
+
+  const hex = color.slice(1);
+  const full =
+    hex.length === 3
+      ? hex
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : hex;
+  const num = parseInt(full, 16);
+
+  if (Number.isNaN(num)) return color;
+
+  const r = Math.max(0, ((num >> 16) & 0xff) * (1 - amount));
+  const g = Math.max(0, ((num >> 8) & 0xff) * (1 - amount));
+  const b = Math.max(0, (num & 0xff) * (1 - amount));
+
+  return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+}
+
+/**
  * TRRACAR API UTILITIES
  */
 
@@ -32,6 +59,27 @@ export async function initTraccarSession() {
   });
 }
 
+/**
+ * How to authenticate to this tenant's Traccar.
+ *
+ * Bearer is what Traccar 5+ wants and is the default, unchanged. Traccar 4
+ * does not understand it — it tries to base64-decode the value as Basic
+ * credentials and answers 400 — so those tenants configure a login instead and
+ * get Basic auth, which is the only credential that both works there and
+ * survives a cross-origin request. Verified against a 4.14 server from a
+ * browser: /devices and /positions both 200.
+ */
+function traccarAuthorization(): string {
+  if (Env.TRACCAR_USER && Env.TRACCAR_PASSWORD) {
+    return `Basic ${btoa(`${Env.TRACCAR_USER}:${Env.TRACCAR_PASSWORD}`)}`;
+  }
+
+  return `Bearer ${Env.TRACCAR_TOKEN}`;
+}
+
+export const usesTraccarBasicAuth = (): boolean =>
+  Boolean(Env.TRACCAR_USER && Env.TRACCAR_PASSWORD);
+
 export const traccarClient = axios.create({
   baseURL: Env.TRACCAR_URL,
   params: {
@@ -40,9 +88,49 @@ export const traccarClient = axios.create({
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
-    Authorization: `Bearer ${Env.TRACCAR_TOKEN}`,
+    Authorization: traccarAuthorization(),
   },
+  // Only on the legacy path, where the socket needs a session cookie. Left off
+  // elsewhere so nothing changes for tenants that work on the token alone.
+  withCredentials: usesTraccarBasicAuth(),
 });
+
+/**
+ * Ask Traccar for a session, so the browser holds its cookie.
+ *
+ * Only useful on the legacy path: Traccar 4 authenticates its WebSocket by
+ * session cookie and nothing else — not `?token=`, which answers 503, and not
+ * Basic auth, which answers 503 on the handshake as well. Verified against a
+ * 4.14 server.
+ *
+ * Whether the browser will keep that cookie is up to the Traccar host: it is
+ * returned as `JSESSIONID=...; Path=/` with no `SameSite`, and a browser will
+ * not store, let alone send, such a cookie cross-site. Once the host adds
+ * `SameSite=None; Secure` the socket connects — verified by injecting exactly
+ * that cookie into a browser and opening the socket cross-origin, which
+ * streamed positions and devices normally. Until then this is harmless and the
+ * feed falls back to polling.
+ */
+export async function ensureTraccarSession(): Promise<void> {
+  if (!usesTraccarBasicAuth()) return;
+
+  // A login, not the token. `GET /session?token=` is not reliable on these
+  // servers: it answers 404 and still hands back a JSESSIONID, but an
+  // anonymous one, so every authenticated call afterwards fails with a 401
+  // that points nowhere near the login. `POST /session` with the credentials
+  // returns 200 and a session that actually carries the user.
+  await axios.post(
+    `${Env.TRACCAR_URL}/session`,
+    new URLSearchParams({
+      email: String(Env.TRACCAR_USER),
+      password: String(Env.TRACCAR_PASSWORD),
+    }),
+    {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      withCredentials: true,
+    }
+  );
+}
 
 export async function initTraccarClient() {
   await traccarClient.get("/session");
@@ -133,4 +221,69 @@ export function mapLinesToSelectOptions(
   });
 
   return basicOptions;
+}
+
+/**
+ * VEHICLE FRESHNESS
+ *
+ * Traccar keeps returning a device's last known position indefinitely, so a
+ * bus that stopped reporting hours ago still arrives with coordinates and
+ * would otherwise be drawn as if it were live. That is worse than clutter:
+ * the vehicle may be kilometres from where the map shows it.
+ */
+
+export const BUS_STALE_AFTER_MS = 5 * 60 * 1000;
+export const BUS_OFFLINE_AFTER_MS = 30 * 60 * 1000;
+
+export type BusFreshness = "live" | "stale" | "offline";
+
+type FreshnessDevice = { status?: string; lastUpdate?: string };
+type FreshnessPosition = {
+  fixTime?: string;
+  deviceTime?: string;
+  outdated?: boolean;
+};
+
+/** Age of a vehicle's last fix in ms, or NaN when there is no usable stamp. */
+export function busPositionAge(
+  device: FreshnessDevice,
+  position: FreshnessPosition,
+  now: number = Date.now()
+): number {
+  const stamp = position.fixTime || position.deviceTime || device.lastUpdate;
+
+  if (!stamp) return NaN;
+
+  const at = new Date(stamp).getTime();
+
+  return Number.isNaN(at) ? NaN : now - at;
+}
+
+export function busFreshness(
+  device: FreshnessDevice,
+  position: FreshnessPosition,
+  now: number = Date.now()
+): BusFreshness {
+  const age = busPositionAge(device, position, now);
+
+  // No timestamp at all: fall back to Traccar's own view of the device.
+  if (Number.isNaN(age)) return device.status === "online" ? "live" : "offline";
+
+  if (age >= BUS_OFFLINE_AFTER_MS) return "offline";
+  if (age >= BUS_STALE_AFTER_MS || position.outdated) return "stale";
+
+  return "live";
+}
+
+/** Coarse "12 min" / "2 h 05" label for a duration in ms. */
+export function formatAge(ms: number): string {
+  if (Number.isNaN(ms) || ms < 0) return "";
+
+  const minutes = Math.floor(ms / 60_000);
+
+  if (minutes < 60) return `${minutes} min`;
+
+  const hours = Math.floor(minutes / 60);
+
+  return `${hours} h ${String(minutes % 60).padStart(2, "0")}`;
 }

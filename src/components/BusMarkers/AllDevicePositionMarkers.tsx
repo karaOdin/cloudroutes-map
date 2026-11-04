@@ -1,121 +1,135 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { useDevicePosition } from "../../hooks/use-device-position.ts";
-import { useCallback, useRef } from "react";
-import { DeviceEvent, PositionEvent } from "../../types.ts";
-import { capitalize, isPositionEvent } from "../../helpers.ts";
-import { useDevicePositionListener } from "../../hooks/use-device-position-listener.ts";
-import { Marker, Popup } from "react-leaflet";
-import { busIcon } from "../../icons.ts";
-import { Marker as LeafletMarker } from "leaflet";
-
-function BusMarkerWithHoverPopup({
-  device,
-  position,
-}: {
-  device: { id: number; name: string; category: string | null };
-  position: { latitude: number; longitude: number; course: number };
-}) {
-  const markerRef = useRef<LeafletMarker>(null);
-
-  const busCategory = capitalize(device?.category || "bus");
-  const busName = device?.name ?? "Unknown";
-
-  return (
-    <Marker
-      ref={markerRef}
-      position={[position.latitude, position.longitude]}
-      icon={busIcon(position.course)}
-      zIndexOffset={1000}
-    >
-      <Popup>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "4px 0",
-          }}
-        >
-          {/* Bus icon */}
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M12 2C8 2 4 2.5 4 6v9.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h2l2-2h4l2 2h2v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V6c0-3.5-4-4-8-4z"
-              fill="#06b6d4"
-            />
-            <path
-              d="M7.5 15c.83 0 1.5-.67 1.5-1.5S8.33 12 7.5 12 6 12.67 6 13.5 6.67 15 7.5 15zM16.5 15c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5-1.5.67-1.5 1.5.67 1.5 1.5 1.5zM18 6H6v5h12V6z"
-              fill="#0891b2"
-            />
-          </svg>
-          {/* Bus name */}
-          <span
-            style={{
-              fontWeight: "600",
-              fontSize: "14px",
-              color: "#1f2937",
-            }}
-          >
-            {busCategory} - {busName}
-          </span>
-        </div>
-      </Popup>
-    </Marker>
-  );
-}
+import { Device } from "../../types.ts";
+import { BusMarker } from "./BusMarker.tsx";
+import { busFreshness, busPositionAge } from "../../helpers.ts";
+import { useLivePositions } from "../../hooks/use-live-positions.ts";
+import { useNow } from "../../hooks/use-now.ts";
+import { useFocusedDeviceIds } from "../../hooks/use-focused-device-ids.ts";
+import { useDevicePaths } from "../../hooks/use-device-paths.ts";
+import { useMapZoom } from "../../hooks/use-map-zoom.ts";
+import { labelledVehicles } from "./bus-labels.ts";
+import { useSpiderfy } from "../../hooks/use-spiderfy.ts";
+import { useFollowStore } from "../../hooks/use-follow-store.ts";
+import { useRouteStore } from "../../hooks/use-route-store.ts";
+import { useVehicleLines } from "../../hooks/use-vehicle-lines.ts";
 
 export function AllDevicePositionMarkers() {
-  const queryClient = useQueryClient();
   const [positions, devices] = useDevicePosition();
+  const now = useNow();
+  const devicePaths = useDevicePaths();
+  const routePoints = useMemo(
+    () => devicePaths.all.map((line) => line.points),
+    [devicePaths]
+  );
+  const zoom = useMapZoom();
+  const vehicleLines = useVehicleLines(positions?.data, devices?.data);
+  const focusedDeviceIds = useFocusedDeviceIds(vehicleLines);
+  const spiderfy = useSpiderfy();
+  const toggleFollow = useFollowStore((state) => state.toggleFollow);
+  const routeLines = useRouteStore((state) => state.routeLines);
 
-  const onPositionUpdate = useCallback(
-    (e: MessageEvent<string>) => {
-      const event = JSON.parse(e.data) as PositionEvent | DeviceEvent;
+  useLivePositions();
 
-      if (isPositionEvent(event)) {
-        const updated = positions.data?.map((p) => {
-          const update = event.positions.find(
-            (pos) => pos.deviceId === p.deviceId
-          );
+  if (!positions?.data) return <></>;
 
-          return update
-            ? {
-                ...p,
-                latitude: update.latitude,
-                longitude: update.longitude,
-                course: update.course,
-              }
-            : p;
-        });
+  // Driven by positions, not by the Traccar device list.
+  //
+  // The device list is only ever decoration here — names and categories — but
+  // iterating it meant no vehicle could be drawn without it, and on Traccar 4
+  // tenants a browser cannot reach it at all: that version rejects the Bearer
+  // header outright and authenticates only by a session cookie which comes
+  // back without a SameSite attribute, so it is never sent cross-site.
+  // Positions come from the tenant's own API and are unaffected, so a vehicle
+  // that is reporting is now drawn whether or not Traccar can be reached.
+  const knownDevices = devices?.data ?? [];
+  const deviceById = new Map(knownDevices.map((device) => [device.id, device]));
+  const drawn = [];
 
-        if (updated) {
-          queryClient.setQueryData(["positions"], updated);
-        }
-      }
-    },
-    [queryClient, positions.data]
+  for (const position of positions.data) {
+    const known = deviceById.get(position.deviceId);
+
+    // While the list is trustworthy, a position with no device behind it is a
+    // stale row rather than a vehicle. Only stand in when there is no list.
+    if (!known && knownDevices.length > 0) continue;
+
+    const device = known ?? unknownDevice(position.deviceId);
+
+      // A focused line should show that line. Holding the rest back at a
+      // quarter opacity left a wash of ghost markers over the whole map —
+      // still drawn, still overlapping, still obscuring the buses actually
+      // being looked for — so they are not drawn at all.
+    if (focusedDeviceIds && !focusedDeviceIds.has(device.id)) continue;
+
+    // Traccar keeps serving the last known fix forever. A vehicle that has
+    // not reported for half an hour is not where this says it is, so it is
+    // not drawn at all rather than drawn as if it were live.
+    const freshness = busFreshness(device, position, now);
+
+    if (freshness === "offline") continue;
+
+    drawn.push({ device, position, freshness });
+  }
+
+  const labelled = labelledVehicles(
+    drawn.map(({ device, position }) => ({
+      id: device.id,
+      lat: position.latitude,
+      lng: position.longitude,
+      focused: !!focusedDeviceIds && focusedDeviceIds.has(device.id),
+    })),
+    zoom
   );
 
-  useDevicePositionListener(onPositionUpdate);
+  spiderfy.observe(
+    drawn.map(({ device, position }) => ({
+      id: device.id,
+      lat: position.latitude,
+      lng: position.longitude,
+    }))
+  );
 
-  if (!positions?.data || !devices?.data) return <></>;
+  return drawn.map(({ device, position, freshness }) => (
+    <BusMarker
+      key={device.id}
+      device={device}
+      position={position}
+      freshness={freshness}
+      age={busPositionAge(device, position, now)}
+      dimmed={
+        // A journey is on the map and this vehicle is on none of its lines.
+        (!!routeLines &&
+          !(vehicleLines.get(device.id)?.lines ?? []).some((line) =>
+            routeLines.includes(line)
+          ))
+      }
+      path={devicePaths.byDevice.get(device.uniqueId)}
+      routes={routePoints}
+      labelled={labelled.has(device.id)}
+      spider={spiderfy.offsets.get(device.id)}
+      lines={vehicleLines.get(device.id)?.lines}
+      linesDeclared={vehicleLines.get(device.id)?.declared}
+      onTap={(id) => {
+        const action = spiderfy.handleTap(id);
 
-  return devices.data.map((device) => {
-    const position = positions.data.find((p) => p.deviceId === device.id);
+        if (action === "select") toggleFollow(id);
 
-    if (!position) return null;
+        return action;
+      }}
+    />
+  ));
+}
 
-    return (
-      <BusMarkerWithHoverPopup
-        key={device.id}
-        device={device}
-        position={position}
-      />
-    );
-  });
+/**
+ * Stand-in for a vehicle that is reporting a position while its Traccar record
+ * is out of reach. Named by device id, which is honest: it is what we know.
+ */
+function unknownDevice(deviceId: number): Device {
+  return {
+    id: deviceId,
+    name: `#${deviceId}`,
+    uniqueId: "",
+    status: "",
+    category: null,
+  } as Device;
 }

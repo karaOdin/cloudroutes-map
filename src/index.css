@@ -1,102 +1,179 @@
+/* ============================================================
+   CloudRoutes Map — global base layer
+
+   Design tokens, reset and primitives live here.
+   Component styles live in App.css.
+   ============================================================ */
+
+/* ============================================
+   DESIGN TOKENS
+   ============================================ */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* --- Brand ramp (cyan) --- */
+  --brand-50: #ecfeff;
+  --brand-100: #cffafe;
+  --brand-200: #a5f3fc;
+  --brand-300: #67e8f9;
+  --brand-400: #22d3ee;
+  --brand-500: #06b6d4;
+  --brand-600: #0891b2;
+  --brand-700: #0e7490;
+  --brand-800: #155e75;
+  --brand-900: #0c4a6e;
+
+  /* --- Neutral ramp --- */
+  --white: #ffffff;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+
+  /* --- Status --- */
+  --green: #10b981;
+  --green-soft: #d1fae5;
+  --green-ink: #065f46;
+  --red: #ef4444;
+  --red-soft: #fee2e2;
+  --red-ink: #991b1b;
+  --yellow: #eab308;
+  --orange: #f59e0b;
+  --orange-soft: #fef3c7;
+  --orange-ink: #92400e;
+
+  /* --- Legacy aliases ---
+     Referenced ~32x across App.css. Kept so existing rules keep
+     resolving; new work should prefer the ramp tokens above. */
+  --primary-blue: var(--brand-500);
+  --dark-blue: #0a3a5c;
+  --medium-blue: var(--brand-900);
+  --light-blue: #164e63;
+
+  /* --- Semantic surfaces & text --- */
+  --surface: var(--white);
+  --surface-muted: var(--gray-50);
+  --surface-sunken: var(--gray-100);
+  --border: var(--gray-200);
+  --border-strong: var(--gray-300);
+  --text: var(--gray-900);
+  --text-muted: var(--gray-600);
+  --text-subtle: var(--gray-400);
+  --on-brand: var(--white);
+
+  /* --- Live vehicle marker --- */
+  --bus-marker: #000000;
+
+  /* --- Gradients --- */
+  --brand-gradient: linear-gradient(135deg, var(--brand-500) 0%, var(--brand-600) 100%);
+
+  /* --- Radii --- */
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-full: 999px;
+
+  /* --- Elevation ---
+     Tinted with the brand navy. (Replaces the stale indigo
+     rgba(67, 56, 202, …) glows left over from the old palette.) */
+  --shadow-xs: 0 1px 2px rgba(12, 74, 110, 0.06);
+  --shadow-sm: 0 2px 8px rgba(12, 74, 110, 0.08);
+  --shadow-md: 0 4px 16px rgba(12, 74, 110, 0.1);
+  --shadow-lg: 0 12px 32px rgba(12, 74, 110, 0.14);
+  --shadow-sheet: 0 -8px 32px rgba(12, 74, 110, 0.16);
+  --shadow-brand: 0 6px 20px rgba(6, 182, 212, 0.35);
+  --ring-brand: 0 0 0 3px rgba(6, 182, 212, 0.25);
+
+  /* --- Motion --- */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 140ms;
+  --dur: 220ms;
+  --dur-slow: 320ms;
+
+  /* --- Layering --- */
+  --z-map-chrome: 9998;
+  --z-map-controls: 9999;
+  --z-sheet: 10000;
+  --z-loading: 99999;
+
+  /* --- Safe areas (notched devices / RN WebView) --- */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+  /* --- Typography --- */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, "Noto Sans Arabic", "Noto Kufi Arabic", sans-serif;
+
+  color-scheme: light;
+  font-family: var(--font-sans);
   line-height: 1.5;
   font-weight: 400;
-
-  color: #1a1a1a;
-  background-color: #ffffff;
+  color: var(--text);
+  background-color: var(--surface);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+/* ============================================
+   RESET
+   ============================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-a:hover {
-  color: #535bf2;
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overscroll-behavior: none;
 }
 
 body {
+  font-family: var(--font-sans);
+  color: var(--text);
+  background-color: var(--surface);
+}
+
+h1,
+h2,
+h3,
+h4 {
   margin: 0;
-}
-
-h1 {
-  font-size: 2.8em;
-  line-height: 1.1;
-}
-
-h2 {
-  font-size: 1.5em;
-  line-height: 1.1;
-}
-
-h3 {
-  font-size: 1.25em;
-  line-height: 1.1;
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #f1f1f1;
-  color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
+  font: inherit;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
 }
 
-button:hover {
-  border-color: #646cff;
+svg {
+  display: block;
+  flex-shrink: 0;
 }
 
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-button.active {
-  background-color: #646cff;
-  color: white;
-
-  svg {
-    fill: white;
-    stroke: white;
-  }
-}
-
-.button-square {
-  aspect-ratio: 1;
-  padding: 0.35em 0.6em;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-
-  a:hover {
-    color: #747bff;
-  }
-
-  button {
-    background-color: #f9f9f9;
-  }
-}
-
+/* ============================================
+   LAYOUT UTILITIES
+   ============================================ */
 .vstack {
   display: flex;
   flex-direction: column;
@@ -126,5 +203,18 @@ button.active {
 }
 
 .min-h-screen {
-  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Visually hidden, still announced by screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

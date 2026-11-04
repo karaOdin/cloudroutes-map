@@ -3,6 +3,11 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
     "target": "ES2022",
     "lib": ["ES2023"],
+    /* This file runs in node and uses fetch, process, console and URLSearchParams.
+       Stating it explicitly means a missing @types/node fails here rather than
+       being satisfied by a stray copy in a parent directory, which is what let
+       a broken build reach CI. */
+    "types": ["node"],
     "module": "ESNext",
     "skipLibCheck": true,
 

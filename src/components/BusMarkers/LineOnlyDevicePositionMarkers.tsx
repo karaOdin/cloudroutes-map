@@ -1,145 +1,142 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { useDevicePosition } from "../../hooks/use-device-position.ts";
-import { useCallback, useRef } from "react";
-import { Device, DeviceEvent, MapFilters, PositionEvent } from "../../types.ts";
-import { capitalize, isPositionEvent } from "../../helpers.ts";
-import { useDevicePositionListener } from "../../hooks/use-device-position-listener.ts";
-import { Marker, Popup } from "react-leaflet";
-import { busIcon } from "../../icons.ts";
+import { BusMarker } from "./BusMarker.tsx";
+import { Device, MapFilters, Position } from "../../types.ts";
+import { busFreshness, busPositionAge } from "../../helpers.ts";
+import { useLivePositions } from "../../hooks/use-live-positions.ts";
+import { useNow } from "../../hooks/use-now.ts";
+import { useFocusedDeviceIds } from "../../hooks/use-focused-device-ids.ts";
+import { useDevicePaths } from "../../hooks/use-device-paths.ts";
+import { useMapZoom } from "../../hooks/use-map-zoom.ts";
+import { labelledVehicles } from "./bus-labels.ts";
+import { useSpiderfy } from "../../hooks/use-spiderfy.ts";
+import { useFollowStore } from "../../hooks/use-follow-store.ts";
+import { useRouteStore } from "../../hooks/use-route-store.ts";
+import {
+  useVehicleLines,
+  VehicleLines,
+} from "../../hooks/use-vehicle-lines.ts";
 import { useLines } from "@cloudroutes/query/lines";
 import { Line } from "@cloudroutes/core/lines";
 import { useFilterStore } from "../../hooks/use-filter-store.ts";
 import { isEmpty } from "@cloudroutes/core";
-import { Marker as LeafletMarker } from "leaflet";
-
-function BusMarkerWithHoverPopup({
-  device,
-  position,
-}: {
-  device: Device;
-  position: { latitude: number; longitude: number; course: number };
-}) {
-  const markerRef = useRef<LeafletMarker>(null);
-
-  const busCategory = capitalize(device?.category || "bus");
-  const busName = device?.name ?? "Unknown";
-
-  return (
-    <Marker
-      ref={markerRef}
-      position={[position.latitude, position.longitude]}
-      icon={busIcon(position.course)}
-      title={busName}
-      zIndexOffset={1000}
-    >
-      <Popup>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "4px 0",
-          }}
-        >
-          {/* Bus icon */}
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M12 2C8 2 4 2.5 4 6v9.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h2l2-2h4l2 2h2v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V6c0-3.5-4-4-8-4z"
-              fill="#06b6d4"
-            />
-            <path
-              d="M7.5 15c.83 0 1.5-.67 1.5-1.5S8.33 12 7.5 12 6 12.67 6 13.5 6.67 15 7.5 15zM16.5 15c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5-1.5.67-1.5 1.5.67 1.5 1.5 1.5zM18 6H6v5h12V6z"
-              fill="#0891b2"
-            />
-          </svg>
-          {/* Bus name */}
-          <span
-            style={{
-              fontWeight: "600",
-              fontSize: "14px",
-              color: "#1f2937",
-            }}
-          >
-            {busCategory} - {busName}
-          </span>
-        </div>
-      </Popup>
-    </Marker>
-  );
-}
 
 export function LineOnlyDevicePositionMarkers() {
   const filters = useFilterStore((state) => state.filters);
-  const queryClient = useQueryClient();
   const [positions, devices] = useDevicePosition();
-  const { data: lines } = useLines();
-
-  const onPositionUpdate = useCallback(
-    (e: MessageEvent<string>) => {
-      const event = JSON.parse(e.data) as PositionEvent | DeviceEvent;
-
-      if (isPositionEvent(event)) {
-        const updated = positions.data?.map((p) => {
-          const update = event.positions.find(
-            (pos) => pos.deviceId === p.deviceId
-          );
-
-          return update
-            ? {
-                ...p,
-                latitude: update.latitude,
-                longitude: update.longitude,
-                course: update.course,
-              }
-            : p;
-        });
-
-        if (updated) {
-          queryClient.setQueryData(["positions"], updated);
-        }
-      }
-    },
-    [queryClient, positions.data]
+  const now = useNow();
+  const devicePaths = useDevicePaths();
+  const routePoints = useMemo(
+    () => devicePaths.all.map((line) => line.points),
+    [devicePaths]
   );
+  const zoom = useMapZoom();
+  const spiderfy = useSpiderfy();
+  const toggleFollow = useFollowStore((state) => state.toggleFollow);
+  const routeLines = useRouteStore((state) => state.routeLines);
+  const { data: lines } = useLines();
+  const vehicleLines = useVehicleLines(positions?.data, devices?.data);
+  const focusedDeviceIds = useFocusedDeviceIds(vehicleLines);
 
-  useDevicePositionListener(onPositionUpdate);
+  useLivePositions();
 
   if (!positions?.data || !devices?.data || !lines) return <></>;
 
-  const filteredDevices = filteredDevicesData(devices.data, lines, filters);
+  const filteredDevices = filteredDevicesData(
+    devices.data,
+    lines,
+    filters,
+    positions.data,
+    vehicleLines
+  );
 
-  return filteredDevices.map((device) => {
+  // See AllDevicePositionMarkers: labels are allocated against what is really
+  // on screen, so resolve the drawn set first.
+  const drawn = [];
+
+  for (const device of filteredDevices) {
     const position = positions.data.find((p) => p.deviceId === device.id);
 
-    if (!position) return null;
+    if (!position) continue;
 
-    return (
-      <BusMarkerWithHoverPopup
-        key={device.id + "_" + position.latitude + "_" + position.longitude}
-        device={device}
-        position={position}
-      />
-    );
-  });
+      // A focused line should show that line. Holding the rest back at a
+      // quarter opacity left a wash of ghost markers over the whole map —
+      // still drawn, still overlapping, still obscuring the buses actually
+      // being looked for — so they are not drawn at all.
+    if (focusedDeviceIds && !focusedDeviceIds.has(device.id)) continue;
+
+    // A fix this old is misleading, not useful.
+    const freshness = busFreshness(device, position, now);
+
+    if (freshness === "offline") continue;
+
+    drawn.push({ device, position, freshness });
+  }
+
+  const labelled = labelledVehicles(
+    drawn.map(({ device, position }) => ({
+      id: device.id,
+      lat: position.latitude,
+      lng: position.longitude,
+      focused: !!focusedDeviceIds && focusedDeviceIds.has(device.id),
+    })),
+    zoom
+  );
+
+  spiderfy.observe(
+    drawn.map(({ device, position }) => ({
+      id: device.id,
+      lat: position.latitude,
+      lng: position.longitude,
+    }))
+  );
+
+  return drawn.map(({ device, position, freshness }) => (
+    <BusMarker
+      key={device.id}
+      device={device}
+      position={position}
+      freshness={freshness}
+      age={busPositionAge(device, position, now)}
+      dimmed={
+        // A journey is on the map and this vehicle is on none of its lines.
+        (!!routeLines &&
+          !(vehicleLines.get(device.id)?.lines ?? []).some((line) =>
+            routeLines.includes(line)
+          ))
+      }
+      path={devicePaths.byDevice.get(device.uniqueId)}
+      routes={routePoints}
+      labelled={labelled.has(device.id)}
+      spider={spiderfy.offsets.get(device.id)}
+      lines={vehicleLines.get(device.id)?.lines}
+      linesDeclared={vehicleLines.get(device.id)?.declared}
+      onTap={(id) => {
+        const action = spiderfy.handleTap(id);
+
+        if (action === "select") toggleFollow(id);
+
+        return action;
+      }}
+    />
+  ));
 }
 
 function filteredDevicesData(
   devices: Device[],
   lines: Line[],
-  filters: MapFilters
+  filters: MapFilters,
+  positions: Position[],
+  vehicleLines: Map<number, VehicleLines>
 ): Device[] {
   if (filters.line === "none") return [];
   if (filters.line === "all") return devices;
+
+  const wanted = filters.line;
   const busesIds: string[] = [];
 
   lines
-    .filter((line) => filters.line.includes(line.name))
+    .filter((line) => wanted.includes(line.name))
     .forEach((line) => {
       line.buses.forEach((bus) => {
         if (
@@ -151,5 +148,22 @@ function filteredDevicesData(
       });
     });
 
-  return devices.filter((device) => busesIds.includes(device.uniqueId));
+  // Where a vehicle has no declared line — which on most tenants is nearly all
+  // of them, and on a bus not yet on the tracker system is all of them — fall
+  // back to the line it is actually driving along. A declared link still wins
+  // where it exists, since the operator saying so beats us inferring it.
+  const byPosition = new Set(
+    positions
+      .filter((position) =>
+        (vehicleLines.get(position.deviceId)?.lines ?? []).some((line) =>
+          wanted.includes(line)
+        )
+      )
+      .map((position) => position.deviceId)
+  );
+
+  return devices.filter(
+    (device) =>
+      busesIds.includes(device.uniqueId) || byPosition.has(device.id)
+  );
 }

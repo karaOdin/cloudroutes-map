@@ -1,12 +1,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useStops } from "@cloudroutes/query/lines";
 import { QUERY_KEYS } from "@cloudroutes/query";
-import { busStopIcon } from "../icons.ts";
-import { Marker } from "react-leaflet";
+import { MINOR_STOP_MIN_ZOOM } from "../icons.ts";
+import { useMapEvent } from "react-leaflet";
+import { StopMarker } from "./StopMarker.tsx";
+import { useHighlightStore } from "../hooks/use-highlight-store.ts";
 import { useFilterStore } from "../hooks/use-filter-store.ts";
+import { useMapZoom } from "../hooks/use-map-zoom.ts";
+import {
+  FALLBACK_LINE_COLOUR,
+  useLineColours,
+} from "../hooks/use-line-colours.ts";
+import { useFocusStore } from "../hooks/use-focus-store.ts";
 import { MapFilters } from "../types.ts";
-import  { useState } from "react";
+import { useEffect, useState } from "react";
 import { BusStopModal } from "./BusStopModal";
+
+/** Long enough to find the stop on screen, short enough not to nag. */
+const CALLOUT_MS = 9_000;
 
 type StopMarker = {
   id: number;
@@ -20,6 +31,26 @@ type StopMarker = {
 
 export function BusStopsMarkers() {
   const filters = useFilterStore((state) => state.filters);
+  const zoom = useMapZoom();
+  const lineColours = useLineColours();
+  const focusedLine = useFocusStore((state) => state.focusedLine);
+  const highlighted = useHighlightStore((state) => state.highlighted);
+  const highlight = useHighlightStore((state) => state.highlight);
+  const clearHighlight = useHighlightStore((state) => state.clearHighlight);
+
+  // A callout answers a question that has been answered once it is read, so it
+  // goes away on the next tap on the map rather than lingering.
+  useMapEvent("click", () => clearHighlight());
+
+  // And on its own, if nothing is tapped at all. A marker pulsing indefinitely
+  // stops reading as an answer and starts reading as a fault.
+  useEffect(() => {
+    if (highlighted === null) return;
+
+    const timer = setTimeout(clearHighlight, CALLOUT_MS);
+
+    return () => clearTimeout(timer);
+  }, [highlighted, clearHighlight]);
   const [selectedStop, setSelectedStop] = useState<StopMarker | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -36,7 +67,12 @@ export function BusStopsMarkers() {
           ] as [number, number],
           lines: stop.lines.map((line) => ({
             name: line.name,
-            color: (line as any).color || "#0c4a6e", // Fallback to indigo if color not available
+            // The stops endpoint carries no colour, so every bead fell back to
+            // one shade. The colour belongs to the line, so it is joined in.
+            color:
+              (line as any).color ||
+              lineColours.get(line.name) ||
+              FALLBACK_LINE_COLOUR,
           })),
         };
       });
@@ -45,7 +81,14 @@ export function BusStopsMarkers() {
 
   if (!stops || filters.stop === "none") return <></>;
 
-  const filteredStops = filteredStopsData(stops, filters);
+  // Filtering is untouched; this only decides how much of the result is worth
+  // drawing at the current zoom. Zoomed out, minor stops collapse away and the
+  // interchanges carry the shape of the network.
+  const filteredStops = visibleStops(
+    filteredStopsData(stops, filters),
+    zoom,
+    focusedLine
+  );
 
   const handleMarkerClick = (stop: StopMarker) => {
     setSelectedStop(stop);
@@ -60,13 +103,14 @@ export function BusStopsMarkers() {
   return (
     <>
       {filteredStops.map((stop) => (
-        <Marker
+        <StopMarker
           key={stop.id}
-          position={stop.coordinate}
-          icon={busStopIcon}
-          title={stop.title}
-          eventHandlers={{
-            click: () => handleMarkerClick(stop),
+          stop={stop}
+          dimmed={!servesFocusedLine(stop, focusedLine)}
+          highlighted={highlighted === stop.id}
+          onClick={() => {
+            highlight(stop.id);
+            handleMarkerClick(stop);
           }}
         />
       ))}
@@ -98,4 +142,29 @@ function filteredStopsData(
   }
 
   return stops;
+}
+
+function servesFocusedLine(
+  stop: StopMarker,
+  focusedLine: string | null
+): boolean {
+  if (!focusedLine) return true;
+
+  return stop.lines.some((line) => line.name === focusedLine);
+}
+
+function visibleStops(
+  stops: StopMarker[],
+  zoom: number,
+  focusedLine: string | null
+): StopMarker[] {
+  if (zoom >= MINOR_STOP_MIN_ZOOM) return stops;
+
+  // Zoomed out the interchanges carry the shape of the network on their own —
+  // except on a focused line, where its own stops are the whole point.
+  return stops.filter(
+    (stop) =>
+      stop.lines.length > 1 ||
+      (!!focusedLine && stop.lines.some((line) => line.name === focusedLine))
+  );
 }
