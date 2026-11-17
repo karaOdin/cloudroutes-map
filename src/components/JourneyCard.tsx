@@ -5,6 +5,7 @@ import { LiveJourney } from "../hooks/use-journey.ts";
 import { useRouteStore } from "../hooks/use-route-store.ts";
 import { useFollowStore } from "../hooks/use-follow-store.ts";
 import { useGoStore } from "../hooks/use-go-store.ts";
+import { useTripStore } from "../hooks/use-trip-store.ts";
 import { useLineColours } from "../hooks/use-line-colours.ts";
 import { useNow } from "../hooks/use-now.ts";
 import {
@@ -18,6 +19,7 @@ import {
 import {
   BusGlyph,
   ChevronGlyph,
+  CloseGlyph,
   FlagGlyph,
   GoGlyph,
   RecenterGlyph,
@@ -44,6 +46,7 @@ export function JourneyCard({ live }: { live: LiveJourney }) {
   const followed = useFollowStore((state) => state.followed);
   const toggleFollow = useFollowStore((state) => state.toggleFollow);
   const startGo = useGoStore((state) => state.start);
+  const clearTrip = useTripStore((state) => state.clear);
 
   usePublishHeight(card);
 
@@ -121,6 +124,15 @@ export function JourneyCard({ live }: { live: LiveJourney }) {
         aria-expanded={open}
         aria-label={open ? t("journey.less") : t("journey.more")}
       />
+
+      <button
+        type="button"
+        className="journey__close"
+        onClick={clearTrip}
+        aria-label={t("trip.close")}
+      >
+        <CloseGlyph size={16} />
+      </button>
 
       <div className="journey__hero" data-tone={text.tone}>
         <div className="journey__bubble" aria-hidden="true">

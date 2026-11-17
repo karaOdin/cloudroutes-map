@@ -670,7 +670,26 @@ focus is a state you can enter by accident.
 
 ---
 
-## 6. Diagnostics
+## 6. Trips and the host bridge
+
+A rider can start a trip from the map itself — the "Where to?" bar, "Take me
+here" on a stop, or pressing and holding anywhere (answered with the nearest
+stop, within 1.5 km). The host can still send one, as before. Either way the
+trip lives in `use-trip-store.ts`, and the host is kept informed:
+
+| Direction | Message | When |
+| --- | --- | --- |
+| host → map | `ROUTE_DATA { routeData }` | The host planned a trip. |
+| host → map | `CLEAR_ROUTE` | The host cleared it. |
+| map → host | `ROUTE_PLANNED { destination, routeData }` | The rider planned a trip on the map. |
+| map → host | `ROUTE_CLEARED` | The rider closed the trip card or cancelled planning. |
+| map → host | `REQUEST_LOCATION` | A trip needs the rider's position and none has arrived; the map waits 4 s for a `LOCATION_UPDATE`. |
+| map → host | `JOURNEY_STAGE { stage, leg, stop }` | Go mode moved on: `walk`, `wait`, `ride`, `get_off_next`, `get_off_now`, `arrived`. Worth a notification for the last three. |
+
+Outside the app the page asks the browser for location instead, which only
+works on a secure origin (https or localhost).
+
+## 7. Diagnostics
 
 Two scripts, both read-only.
 
@@ -704,7 +723,7 @@ CSS override that one measurement of the rendered pixels found immediately.
 
 ---
 
-## 7. Constants reference
+## 8. Constants reference
 
 | constant | value | file | why |
 |---|---|---|---|
@@ -734,7 +753,7 @@ CSS override that one measurement of the rendered pixels found immediately.
 
 ---
 
-## 8. Known data problems, by tenant
+## 9. Known data problems, by tenant
 
 These are **admin data issues**, not code. Each degrades a real feature.
 
@@ -772,7 +791,7 @@ These are **admin data issues**, not code. Each degrades a real feature.
 
 ---
 
-## 9. Known gaps
+## 10. Known gaps
 
 | gap | impact |
 |---|---|
@@ -786,7 +805,7 @@ These are **admin data issues**, not code. Each degrades a real feature.
 
 ---
 
-## 10. Debugging checklist
+## 11. Debugging checklist
 
 **Vehicles jump or move wrong**
 1. Run `scripts/observe-markers.mjs`. Sub-pixel steps on most frames = healthy.

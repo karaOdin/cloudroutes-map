@@ -36,6 +36,9 @@ import { LinesCarousel } from "./components/LinesCarousel.tsx";
 import { useLocationStore } from "./hooks/use-location-store.ts";
 import { useJourney } from "./hooks/use-journey.ts";
 import { JourneyCard } from "./components/JourneyCard.tsx";
+import { WhereTo } from "./components/WhereTo.tsx";
+import { PressToGo } from "./components/PressToGo.tsx";
+import { useTripStore } from "./hooks/use-trip-store.ts";
 import { GoMode } from "./components/GoMode.tsx";
 import { useGo } from "./hooks/use-go.ts";
 import { useGoStore } from "./hooks/use-go-store.ts";
@@ -659,7 +662,8 @@ function App() {
   const [displayLocation, setDisplayLocation] = useState(false);
   // Shared, so "near me" can answer without reaching into this component.
   const setHere = useLocationStore((state) => state.setHere);
-  const [routeData, setRouteData] = useState<RouteData | null>(null);
+  const routeData = useTripStore((state) => state.route);
+  const setRouteFromHost = useTripStore((state) => state.setFromHost);
   const setRouteLines = useRouteStore((state) => state.setRouteLines);
   const [appReady, setAppReady] = useState(false);
   const map = useRef<any>(null);
@@ -706,12 +710,12 @@ function App() {
 
       // Handle route data from React Native
       if (data.type === "ROUTE_DATA" && data.routeData) {
-        setRouteData(data.routeData);
+        setRouteFromHost(data.routeData);
       }
 
       // Handle clear route
       if (data.type === "CLEAR_ROUTE") {
-        setRouteData(null);
+        setRouteFromHost(null);
       }
 
       // Legacy support
@@ -723,7 +727,7 @@ function App() {
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [i18n, setHere]);
+  }, [i18n, setHere, setRouteFromHost]);
 
   // Tell the vehicle layers which lines the journey uses, so the buses that
   // are not on it can step back.
@@ -821,6 +825,10 @@ function App() {
 
       {live &&
         (go ? <GoMode live={live} go={go} /> : <JourneyCard live={live} />)}
+
+      {/* The way into a trip, always in sight while there is none. */}
+      {!routeData && <WhereTo />}
+      {!routeData && <PressToGo />}
 
       <ZoomControl />
       <FocusBanner />

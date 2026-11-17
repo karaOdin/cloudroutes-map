@@ -3,6 +3,8 @@ import Modal from "react-modal";
 import { useTranslation } from "react-i18next";
 import { useArrivals } from "../hooks/use-arrivals.ts";
 import { Arrival } from "../services/arrivals.ts";
+import { useTripStore } from "../hooks/use-trip-store.ts";
+import { GoGlyph } from "./journey-glyphs.tsx";
 
 type BusStopModalProps = {
   isOpen: boolean;
@@ -43,6 +45,7 @@ export function BusStopModal({
     [stop]
   );
   const arrivals = useArrivals(target);
+  const plan = useTripStore((state) => state.plan);
   const colours = new Map(stop?.lines.map((line) => [line.name, line.color]));
 
   if (!stop) return null;
@@ -155,6 +158,19 @@ export function BusStopModal({
 
         {/* Body */}
         <div className="bus-stop-modal-body">
+          {/* First, because it is what most riders opening a stop want. */}
+          <button
+            type="button"
+            className="stop-go"
+            onClick={() => {
+              onClose();
+              void plan(stop.title);
+            }}
+          >
+            <GoGlyph size={18} />
+            <span>{t("trip.take_me_here")}</span>
+          </button>
+
           {/* Lines Section */}
           <div className="bus-stop-section">
             <div className="bus-stop-section-title">

@@ -5507,3 +5507,587 @@ body:has(.route-results-wrapper) .leaflet-popup {
     animation: none;
   }
 }
+
+/* ============================================
+   WHERE TO? — the way into a trip
+   A bar along the bottom, where a thumb is. Its height is published as
+   --journey-h like the trip card's, so the zoom buttons stand clear of it.
+   ============================================ */
+.where-to {
+  position: absolute;
+  left: calc(12px + var(--safe-left));
+  right: calc(12px + var(--safe-right));
+  bottom: calc(14px + var(--safe-bottom));
+  z-index: var(--z-map-controls);
+  max-width: 480px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: journey-rise 380ms var(--ease-out) both;
+}
+
+.where-to__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 8px 8px 8px 12px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text);
+  text-align: start;
+  box-shadow: 0 10px 32px rgba(12, 74, 110, 0.24), 0 2px 6px rgba(12, 74, 110, 0.1);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast);
+}
+
+[dir="rtl"] .where-to__bar {
+  padding: 8px 12px 8px 8px;
+}
+
+.where-to__bar:active {
+  transform: scale(0.98);
+}
+
+.where-to__bar:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-brand), 0 10px 32px rgba(12, 74, 110, 0.24);
+}
+
+.where-to__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--brand-50);
+  color: var(--brand-700);
+}
+
+.where-to__text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.where-to__title {
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  color: var(--brand-900);
+}
+
+.where-to__sub {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.where-to__go {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--brand-400), var(--brand-600));
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(8, 145, 178, 0.4);
+}
+
+[dir="rtl"] .where-to__go svg {
+  transform: scaleX(-1);
+}
+
+.where-to__bar.is-planning {
+  cursor: default;
+}
+
+.where-to__spinner {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  margin: 2px;
+  border-radius: 50%;
+  border: 4px solid var(--brand-100);
+  border-top-color: var(--brand-500);
+  animation: spin 0.8s linear infinite;
+}
+
+.where-to__cancel {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+/* First-run note: says the feature exists, once. */
+.where-to__hint {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  align-self: center;
+  max-width: 100%;
+  padding: 9px 10px 9px 12px;
+  border-radius: var(--radius-lg);
+  background: var(--brand-900);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: var(--shadow-lg);
+  animation: hint-bob 2.4s var(--ease) 600ms 2;
+}
+
+.where-to__hint::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  background: var(--brand-900);
+  transform: translateX(-50%) rotate(45deg);
+  border-radius: 2px;
+}
+
+.where-to__hint-badge {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--brand-400);
+  color: var(--brand-900);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.where-to__hint-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  cursor: pointer;
+}
+
+@keyframes hint-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.where-to__problem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 14px;
+  border-radius: var(--radius-lg);
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 13.5px;
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
+}
+
+.where-to__problem span {
+  flex: 1;
+}
+
+.where-to__problem button {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(153, 27, 27, 0.1);
+  color: inherit;
+  cursor: pointer;
+}
+
+/* --- The sheet --- */
+.trip-sheet {
+  max-height: min(92dvh, 820px);
+  min-height: min(70dvh, 600px);
+}
+
+.trip-sheet__header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 16px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.trip-sheet__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 12px;
+}
+
+.trip-sheet__title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--brand-900);
+}
+
+.trip-sheet__route {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.trip-sheet__from {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 15px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.trip-sheet__from-label {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.trip-sheet__from-value {
+  flex: 1;
+  min-width: 0;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trip-sheet__change {
+  color: var(--brand-700);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.trip-sheet__reset {
+  align-self: flex-start;
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  color: var(--brand-700);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trip-sheet__dot {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+}
+
+.trip-sheet__dot.is-from {
+  width: 14px;
+  height: 14px;
+  margin-inline: 4px;
+  border: 4px solid var(--brand-500);
+  background: #fff;
+}
+
+.trip-sheet__dot.is-to {
+  background: #ef4444;
+  color: #fff;
+}
+
+.trip-sheet__search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 0 14px;
+  border: 2px solid var(--brand-400);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--ring-brand);
+}
+
+.trip-sheet__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.trip-sheet__body {
+  padding: 8px 8px 20px;
+}
+
+.trip-sheet__section {
+  margin: 12px 10px 4px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.trip-sheet__empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.trip-sheet__tip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 8px 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--brand-50);
+  color: var(--brand-800);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.places {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.place {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text);
+  text-align: start;
+  cursor: pointer;
+}
+
+.place:hover,
+.place:focus-visible {
+  background: var(--surface-muted);
+  outline: none;
+}
+
+.place__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--brand-50);
+  color: var(--brand-700);
+}
+
+.place__icon[data-kind="recent"] {
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+}
+
+.place__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.place__name {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.place__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.place__line {
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  background: var(--brand-700);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.place__extra {
+  margin-inline-start: 2px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* --- Take me here, on a stop --- */
+.stop-go {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 52px;
+  margin-bottom: 16px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: linear-gradient(180deg, var(--brand-400), var(--brand-600));
+  color: #fff;
+  font-size: 17px;
+  font-weight: 900;
+  box-shadow: 0 8px 22px rgba(8, 145, 178, 0.38), inset 0 -3px 0 rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+}
+
+.stop-go:active {
+  transform: scale(0.98);
+}
+
+/* --- Press and hold --- */
+.press-pin {
+  background: none;
+  border: 0;
+}
+
+.press-pin__dot {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 4px solid #fff;
+  box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.25), 0 4px 10px rgba(0, 0, 0, 0.25);
+  animation: press-drop 300ms var(--ease-out) both;
+}
+
+@keyframes press-drop {
+  from { transform: translateY(-14px) scale(0.6); opacity: 0; }
+}
+
+.press-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.press-popup .leaflet-popup-content {
+  margin: 0;
+  width: auto !important;
+}
+
+.press-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+  max-width: 260px;
+  padding: 12px 14px 14px;
+}
+
+.press-card__label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.press-card__name {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--brand-900);
+}
+
+.press-card__walk {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.press-card__go {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 42px;
+  margin-top: 10px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: linear-gradient(180deg, var(--brand-400), var(--brand-600));
+  color: #fff;
+  font-size: 15px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.press-card__none {
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+/* --- Closing a trip --- */
+.journey__close {
+  position: absolute;
+  top: 10px;
+  inset-inline-end: 12px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .where-to,
+  .where-to__hint,
+  .press-pin__dot {
+    animation: none;
+  }
+}

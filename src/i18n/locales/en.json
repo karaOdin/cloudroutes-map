@@ -204,5 +204,32 @@
     "locating": "Waiting for your location…",
     "arrival_plus": "Arrive + change",
     "leg": "Bus {{leg}} of {{legs}}"
+  },
+  "trip": {
+    "new": "New",
+    "hint": "Plan a trip and follow your bus live, stop by stop",
+    "where_to": "Where to?",
+    "where_to_sub": "Live buses · step-by-step trip",
+    "planning": "Finding your trip…",
+    "cancel": "Cancel",
+    "from": "From",
+    "my_location": "My location",
+    "change": "Change",
+    "use_my_location": "Use my location instead",
+    "choose_start": "Start from",
+    "search": "Search a stop or area",
+    "search_start": "Search a starting stop",
+    "no_match": "No stop matches that",
+    "recent": "Recent",
+    "nearby": "Stops near you",
+    "long_press_tip": "Or press and hold anywhere on the map to go there",
+    "nearest_stop": "Nearest stop",
+    "walk_from_stop": "{{distance}} from where you pressed",
+    "take_me_here": "Take me here",
+    "no_stop_near": "No bus stop near here",
+    "close": "Close trip",
+    "problem_no_location": "We couldn't find your location. Turn location on, or choose a starting stop.",
+    "problem_no_route": "No bus trip found to there. Try a nearby stop.",
+    "problem_failed": "Couldn't plan the trip. Check your connection and try again."
   }
 }

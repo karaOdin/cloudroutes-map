@@ -204,5 +204,32 @@
     "locating": "En attente de votre position…",
     "arrival_plus": "Arrivée + corresp.",
     "leg": "Bus {{leg}} sur {{legs}}"
+  },
+  "trip": {
+    "new": "Nouveau",
+    "hint": "Planifiez un trajet et suivez votre bus en direct, arrêt par arrêt",
+    "where_to": "Où allez-vous ?",
+    "where_to_sub": "Bus en direct · trajet guidé",
+    "planning": "Recherche de votre trajet…",
+    "cancel": "Annuler",
+    "from": "Départ",
+    "my_location": "Ma position",
+    "change": "Changer",
+    "use_my_location": "Utiliser ma position",
+    "choose_start": "Partir de",
+    "search": "Rechercher un arrêt ou un quartier",
+    "search_start": "Rechercher un arrêt de départ",
+    "no_match": "Aucun arrêt ne correspond",
+    "recent": "Récents",
+    "nearby": "Arrêts près de vous",
+    "long_press_tip": "Ou appuyez longuement n’importe où sur la carte pour y aller",
+    "nearest_stop": "Arrêt le plus proche",
+    "walk_from_stop": "à {{distance}} de l’endroit choisi",
+    "take_me_here": "M’y emmener",
+    "no_stop_near": "Aucun arrêt de bus à proximité",
+    "close": "Fermer le trajet",
+    "problem_no_location": "Position introuvable. Activez la localisation ou choisissez un arrêt de départ.",
+    "problem_no_route": "Aucun trajet en bus trouvé. Essayez un arrêt proche.",
+    "problem_failed": "Impossible de planifier le trajet. Vérifiez votre connexion et réessayez."
   }
 }
