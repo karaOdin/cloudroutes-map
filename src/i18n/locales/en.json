@@ -184,5 +184,25 @@
     "show_bus": "Show this bus on the map",
     "no_location": "Your position isn't shared, so the walk is the planner's estimate",
     "walk_estimated": "Walk estimated in a straight line — the walking router didn't answer"
+  },
+  "go": {
+    "start": "Go",
+    "walk_to": "Walk to {{stop}}",
+    "wait_for": "Wait for {{line}}",
+    "stops_to_go_one": "{{count}} stop to go",
+    "stops_to_go_other": "{{count}} stops to go",
+    "stops_to_go": "{{count}} stops to go",
+    "next_stop": "Next: {{stop}} · get off at {{alight}}",
+    "stop_is_next": "Your stop is next",
+    "ring_bell": "{{stop}} in {{distance}} — ring the bell",
+    "get_off_now": "Get off now",
+    "arrived": "You've arrived",
+    "trip_took": "{{stop}} · {{minutes}} min door to door",
+    "done": "Done",
+    "end": "End trip",
+    "recenter": "Recenter",
+    "locating": "Waiting for your location…",
+    "arrival_plus": "Arrive + change",
+    "leg": "Bus {{leg}} of {{legs}}"
   }
 }

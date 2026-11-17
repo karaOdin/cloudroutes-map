@@ -36,6 +36,9 @@ import { LinesCarousel } from "./components/LinesCarousel.tsx";
 import { useLocationStore } from "./hooks/use-location-store.ts";
 import { useJourney } from "./hooks/use-journey.ts";
 import { JourneyCard } from "./components/JourneyCard.tsx";
+import { GoMode } from "./components/GoMode.tsx";
+import { useGo } from "./hooks/use-go.ts";
+import { useGoStore } from "./hooks/use-go-store.ts";
 import {
   FitNetworkControl,
   TileReadyFlag,
@@ -661,6 +664,9 @@ function App() {
   const [appReady, setAppReady] = useState(false);
   const map = useRef<any>(null);
   const live = useJourney(routeData);
+  const go = useGo(live);
+  const isGoing = useGoStore((state) => state.active);
+  const stopGo = useGoStore((state) => state.stop);
   const leafletProvider = useGlobalStore((state) => state.leafletProvider);
 
   // Check if running in React Native WebView
@@ -739,6 +745,11 @@ function App() {
     setRouteLines(lines);
   }, [routeData, setRouteLines]);
 
+  // A journey that is taken away takes turn-by-turn with it.
+  useEffect(() => {
+    if (!routeData) stopGo();
+  }, [routeData, stopGo]);
+
   // Update document direction when language changes
   useEffect(() => {
     document.documentElement.dir = i18n.language === "ar" ? "rtl" : "ltr";
@@ -808,19 +819,24 @@ function App() {
         </>
       )}
 
-      {live && <JourneyCard live={live} />}
+      {live &&
+        (go ? <GoMode live={live} go={go} /> : <JourneyCard live={live} />)}
 
       <ZoomControl />
       <FocusBanner />
       <FollowBanner />
 
       {/* Map Controls - position lower when in WebView to avoid search bar */}
-      <LinesCarousel hidden={isFiltersOpen || isLinesOpen || isBusesOpen} />
+      <LinesCarousel
+        hidden={isFiltersOpen || isLinesOpen || isBusesOpen || isGoing}
+      />
 
+      {/* Turn-by-turn owns the top of the map; the network tools step aside. */}
       <div
         className={clsx("map-controls", {
           "map-controls-webview": isInWebView,
         })}
+        hidden={isGoing}
       >
         <button
           type="button"

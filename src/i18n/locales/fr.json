@@ -184,5 +184,25 @@
     "show_bus": "Voir ce bus sur la carte",
     "no_location": "Votre position n’est pas partagée : la marche est l’estimation du planificateur",
     "walk_estimated": "Marche estimée à vol d’oiseau — le calcul piéton n’a pas répondu"
+  },
+  "go": {
+    "start": "C’est parti",
+    "walk_to": "Marchez jusqu’à {{stop}}",
+    "wait_for": "Attendez la {{line}}",
+    "stops_to_go_one": "Encore {{count}} arrêt",
+    "stops_to_go_other": "Encore {{count}} arrêts",
+    "stops_to_go": "Encore {{count}} arrêts",
+    "next_stop": "Prochain : {{stop}} · descente à {{alight}}",
+    "stop_is_next": "Votre arrêt est le prochain",
+    "ring_bell": "{{stop}} dans {{distance}} — demandez l’arrêt",
+    "get_off_now": "Descendez maintenant",
+    "arrived": "Vous êtes arrivé",
+    "trip_took": "{{stop}} · {{minutes}} min au total",
+    "done": "Terminé",
+    "end": "Arrêter le trajet",
+    "recenter": "Recentrer",
+    "locating": "En attente de votre position…",
+    "arrival_plus": "Arrivée + corresp.",
+    "leg": "Bus {{leg}} sur {{legs}}"
   }
 }

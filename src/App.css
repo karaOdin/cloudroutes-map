@@ -4841,34 +4841,43 @@ body:has(.route-results-wrapper) .leaflet-popup {
 
 /* ---------------------------------------------------------------------------
    Journey card.
-   Sits along the bottom while a journey is on the map and leads with one
-   instruction. Its height is published as --journey-h on the map container
-   (see JourneyCard) so the banners and zoom buttons move up with it.
+   Sits along the bottom while a journey is on the map. Big, round and loud
+   about the one thing that matters — whether to go — in a countdown bubble,
+   with the trip summed up as a strip of steps and Go under the thumb. Its
+   height is published as --journey-h on the map container (see
+   usePublishHeight) so the banners and zoom buttons move up with it.
    --------------------------------------------------------------------------- */
 .journey {
   position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: calc(12px + var(--safe-bottom));
+  left: 10px;
+  right: 10px;
+  bottom: calc(10px + var(--safe-bottom));
   z-index: var(--z-map-controls);
   max-width: 480px;
   margin-inline: auto;
-  max-height: 60vh;
+  max-height: 62vh;
   overflow-y: auto;
-  padding: 6px 16px 14px;
-  border-radius: var(--radius-2xl);
-  border: 1px solid var(--border);
+  padding: 4px 14px 14px;
+  border-radius: 28px;
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 10px 40px rgba(12, 74, 110, 0.22), 0 2px 6px rgba(12, 74, 110, 0.08);
   cursor: default;
+  animation: journey-rise 380ms var(--ease-out) both;
+}
+
+@keyframes journey-rise {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
 }
 
 .journey__handle {
   display: block;
-  width: 44px;
-  height: 18px;
-  margin: 0 auto 2px;
+  width: 56px;
+  height: 20px;
+  margin: 0 auto;
   padding: 0;
   border: 0;
   background: transparent;
@@ -4879,145 +4888,262 @@ body:has(.route-results-wrapper) .leaflet-popup {
 .journey__handle::before {
   content: "";
   position: absolute;
-  inset: 7px 4px;
+  inset: 8px 8px;
   border-radius: var(--radius-full);
-  background: var(--border-strong, var(--gray-300));
+  background: var(--border-strong);
 }
 
-.journey__head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.journey__to,
-.journey__eta {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.journey__eta {
-  align-items: flex-end;
-  flex: none;
-}
-
-.journey__to-label,
-.journey__eta-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-subtle);
-}
-
-.journey__to-name {
-  font-size: 16px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.journey__eta-time {
-  font-size: 16px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  direction: ltr;
-}
-
-.journey__status {
+/* The hero: bubble, instruction, show-me. */
+.journey__hero {
+  --tone: var(--brand-500);
+  --tone-ink: var(--brand-800);
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: var(--radius-lg);
-  background: var(--surface-muted, var(--gray-50));
-  border-inline-start: 4px solid var(--brand-600);
+  gap: 14px;
+  padding: 4px 2px 12px;
 }
 
-.journey__status[data-tone="go"] {
-  border-inline-start-color: var(--green);
+.journey__hero[data-tone="go"] {
+  --tone: var(--green);
+  --tone-ink: var(--green-ink);
 }
 
-.journey__status[data-tone="warn"] {
-  border-inline-start-color: var(--orange);
+.journey__hero[data-tone="warn"] {
+  --tone: var(--orange);
+  --tone-ink: var(--orange-ink);
 }
 
-.journey__status[data-tone="idle"] {
-  border-inline-start-color: var(--text-subtle);
+.journey__hero[data-tone="idle"] {
+  --tone: var(--gray-400);
+  --tone-ink: var(--text-muted);
 }
 
-.journey__status-text {
+.journey__bubble {
+  flex: none;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: var(--tone);
+  color: #fff;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--tone) 45%, transparent),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.12);
+}
+
+.journey__hero[data-tone="go"] .journey__bubble,
+.journey__hero[data-tone="warn"] .journey__bubble {
+  animation: bubble-beat 1.6s var(--ease) infinite;
+}
+
+@keyframes bubble-beat {
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+.journey__bubble-value {
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.journey__bubble-unit {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+/* Hurry: the walker leans in. */
+.journey__bubble .is-running {
+  display: inline-flex;
+  transform: skewX(-10deg);
+}
+
+.journey__hero-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   flex: 1;
   min-width: 0;
 }
 
 .journey__headline {
-  font-size: 19px;
-  font-weight: 800;
-  line-height: 1.2;
-}
-
-.journey__status[data-tone="go"] .journey__headline {
-  color: var(--green-ink);
-}
-
-.journey__status[data-tone="warn"] .journey__headline {
-  color: var(--orange-ink);
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--tone-ink);
 }
 
 .journey__detail {
   font-size: 13px;
+  line-height: 1.35;
   color: var(--text-muted);
-}
-
-.journey__chip {
-  flex: none;
-  padding: 4px 9px;
-  border-radius: var(--radius-full);
-  background: var(--brand-600);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
 }
 
 .journey__show {
   flex: none;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   padding: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  background: var(--surface);
-  color: var(--brand-600);
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-muted);
+  color: var(--brand-700);
   cursor: pointer;
   transition: transform var(--dur-fast) var(--ease-out);
 }
 
-.journey__show:active {
-  transform: scale(0.93);
+.journey__show:active,
+.journey__go:active,
+.go-bar__end:active,
+.go-bar__done:active,
+.go-recenter:active {
+  transform: scale(0.94);
+}
+
+/* The trip, as a strip of steps, with the arrival opposite. */
+.journey__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: var(--surface-muted);
+}
+
+.trip-strip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  min-width: 0;
+  color: var(--text-subtle);
+}
+
+/* Steps read in the direction of travel, so the chevrons turn in Arabic. */
+[dir="rtl"] .glyph-chevron {
+  transform: scaleX(-1);
+}
+
+.trip-strip__walk,
+.trip-strip__line,
+.trip-strip__end {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 26px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.trip-strip__walk {
+  color: var(--text);
+}
+
+.trip-strip__line {
+  padding: 0 9px 0 7px;
+  border-radius: var(--radius-full);
+  background: var(--brand-600);
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+}
+
+.trip-strip__end {
+  color: var(--red);
+}
+
+.journey__eta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: none;
+}
+
+.journey__eta-time {
+  font-size: 17px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.journey__eta-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-subtle);
+}
+
+.journey__to {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 4px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 0;
+}
+
+.journey__to svg {
+  flex: none;
+  color: var(--red);
+}
+
+.journey__to-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.journey__go {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 54px;
+  margin-top: 12px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: linear-gradient(180deg, var(--brand-400), var(--brand-600));
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  box-shadow: 0 8px 22px rgba(8, 145, 178, 0.38), inset 0 -3px 0 rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out);
 }
 
 .journey__caveat {
-  margin: 8px 2px 0;
+  margin: 8px 4px 0;
   font-size: 11px;
   color: var(--text-subtle);
 }
 
+.journey__chip {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: var(--brand-600);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+}
+
 .journey__steps {
   list-style: none;
-  margin: 12px 0 0;
-  padding: 0;
+  margin: 14px 0 0;
+  padding: 0 4px;
 }
 
 .journey__step {
@@ -5073,7 +5199,7 @@ body:has(.route-results-wrapper) .leaflet-popup {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .journey__step-meta {
@@ -5081,12 +5207,272 @@ body:has(.route-results-wrapper) .leaflet-popup {
   color: var(--text-muted);
 }
 
-.leaflet-container[data-chrome="dark"] .journey__status[data-tone="go"] .journey__headline {
+.leaflet-container[data-chrome="dark"] .journey__hero {
+  --tone-ink: color-mix(in srgb, var(--tone) 70%, white);
+}
+
+/* ---------------------------------------------------------------------------
+   Go mode.
+   One instruction across the top in large type on a colour that rises with
+   urgency — walk, wait, ride, your stop is next, get off now — and the
+   arrival and the way out along the bottom.
+   --------------------------------------------------------------------------- */
+.map-controls[hidden] {
+  display: none;
+}
+
+.go-banner {
+  --go-bg: linear-gradient(135deg, var(--brand-700), var(--brand-500));
+  position: absolute;
+  top: calc(var(--map-inset-top, 0px) + 10px + var(--safe-top));
+  left: 10px;
+  right: 10px;
+  z-index: var(--z-map-controls);
+  max-width: 520px;
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 26px;
+  background: var(--go-bg);
+  color: #fff;
+  box-shadow: 0 12px 36px rgba(12, 74, 110, 0.32);
+  animation: go-drop 360ms var(--ease-out) both;
+}
+
+@keyframes go-drop {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+}
+
+/* Waiting and riding are calm states, so they sit on a deep navy whatever
+   the line's colour: a red line on a red banner would read as "get off now".
+   The line shows in the tile instead. */
+.go-banner[data-tone="wait"],
+.go-banner[data-tone="ride"] {
+  --go-bg: linear-gradient(135deg, #0b2a3f, #134e66);
+}
+
+.go-banner[data-tone="wait"] .go-banner__glyph,
+.go-banner[data-tone="ride"] .go-banner__glyph {
+  background: var(--go-line, var(--brand-500));
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35),
+    0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.go-banner[data-tone="soon"] {
+  --go-bg: linear-gradient(135deg, #b45309, #f59e0b);
+}
+
+.go-banner[data-tone="now"] {
+  --go-bg: linear-gradient(135deg, #b91c1c, #ef4444);
+  animation: go-drop 360ms var(--ease-out) both, go-alarm 1s var(--ease) infinite;
+}
+
+.go-banner[data-tone="done"] {
+  --go-bg: linear-gradient(135deg, #047857, #10b981);
+}
+
+@keyframes go-alarm {
+  50% {
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.35), 0 12px 36px rgba(127, 29, 29, 0.4);
+  }
+}
+
+.go-banner__glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.28);
+}
+
+.go-banner__count {
+  font-size: 30px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.go-banner__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.go-banner__title {
+  font-size: 23px;
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.go-banner__detail {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  opacity: 0.95;
+}
+
+.go-banner__legs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: none;
+}
+
+.go-banner__legs span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.go-banner__legs span.is-done {
+  background: #fff;
+}
+
+.go-locating {
+  position: absolute;
+  top: calc(var(--map-inset-top, 0px) + 112px + var(--safe-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-map-controls);
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+  background: rgba(17, 24, 31, 0.82);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.go-recenter {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--journey-h, 0px) + 22px + var(--safe-bottom));
+  transform: translateX(-50%);
+  z-index: var(--z-map-controls);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--brand-700);
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+}
+
+.go-recenter:active {
+  transform: translateX(-50%) scale(0.94);
+}
+
+.go-bar {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: calc(10px + var(--safe-bottom));
+  z-index: var(--z-map-controls);
+  max-width: 480px;
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 10px 10px 20px;
+  border-radius: 26px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 10px 36px rgba(12, 74, 110, 0.22);
+  animation: journey-rise 380ms var(--ease-out) both;
+}
+
+[dir="rtl"] .go-bar {
+  padding: 10px 20px 10px 10px;
+}
+
+.go-bar__cell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.go-bar__big {
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.go-bar__cell + .go-bar__cell .go-bar__big {
+  color: var(--green-ink);
+}
+
+.go-bar__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.go-bar__end {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--red-soft);
+  color: var(--red-ink);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.go-bar__done {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 54px;
+  margin-inline-start: -10px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: linear-gradient(180deg, #34d399, #059669);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.leaflet-container[data-chrome="dark"] .go-bar__cell + .go-bar__cell .go-bar__big {
   color: var(--green);
 }
 
-.leaflet-container[data-chrome="dark"] .journey__status[data-tone="warn"] .journey__headline {
-  color: var(--orange);
+@media (prefers-reduced-motion: reduce) {
+  .journey,
+  .go-bar,
+  .go-banner,
+  .go-banner[data-tone="now"],
+  .journey__hero .journey__bubble {
+    animation: none;
+  }
 }
 
 /* The bus the card is about: ringed, so it keeps its line colour and still
