@@ -23,6 +23,7 @@ import {
   useLineColours,
 } from "../../hooks/use-line-colours.ts";
 import { useFollowStore } from "../../hooks/use-follow-store.ts";
+import { useRouteStore } from "../../hooks/use-route-store.ts";
 import {
   MeasuredPath,
   chooseRoute,
@@ -102,6 +103,7 @@ function BusMarkerComponent({
   const map = useMap();
   const followed = useFollowStore((state) => state.followed);
   const toggleFollow = useFollowStore((state) => state.toggleFollow);
+  const journeyBus = useRouteStore((state) => state.journeyBus);
   const { latitude, longitude, course } = position;
   const fixAt = Date.parse(position.fixTime ?? position.deviceTime ?? "");
   const markerRef = useRef<LeafletMarker>(null);
@@ -328,6 +330,19 @@ function BusMarkerComponent({
     element.classList.toggle("is-labelled", labelled);
   }, [busName, labelled, isStale]);
 
+  // The bus the journey card is telling the rider to catch. Ringed rather
+  // than recoloured, so it keeps its line colour and still reads as that
+  // line's vehicle.
+  const isJourneyBus = device.id !== undefined && journeyBus === device.id;
+
+  useEffect(() => {
+    const element = markerRef.current?.getElement();
+
+    if (!element) return;
+
+    element.classList.toggle("is-journey", isJourneyBus);
+  }, [isJourneyBus]);
+
   // Fan this vehicle out of a pile-up. The translation is on the inner
   // container, so Leaflet still has the marker at the reported coordinate and
   // the leader line drawn by CSS points back to it — the position on the map
@@ -411,7 +426,7 @@ function BusMarkerComponent({
           if (onTap(device.id) === "opened") markerRef.current?.closePopup();
         },
       }}
-      zIndexOffset={spider ? 1400 : isStale ? 600 : 1000}
+      zIndexOffset={isJourneyBus ? 1500 : spider ? 1400 : isStale ? 600 : 1000}
     >
       <Popup
         // Leaflet pans a popup into view on open, and without this it panned

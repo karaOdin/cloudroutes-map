@@ -50,6 +50,8 @@ Nothing in this repo fetches configuration itself.
 | `TRACCAR_WS_URL` | Traccar socket; a non-absolute value is treated as a path on the app's own origin |
 | `TRACCAR_TOKEN` | Traccar token auth — works on 5+ |
 | `TRACCAR_USER` / `TRACCAR_PASSWORD` | **only for Traccar 4 tenants**; switches to Basic auth |
+| `OSRM_URL` | driving router — road distance to buses, stop order. Default `osrm-car.devcloud.dz` |
+| `OSRM_FOOT_URL` | walking router — walk to and from stops on a journey. Default `osrm-foot.devcloud.dz` |
 
 So enabling a Traccar 4 tenant is a change to **what your backend returns for
 that tenant**, not a redeploy of this app: add `TRACCAR_USER` and

@@ -10,6 +10,7 @@ declare global {
       TRACCAR_USER?: string;
       TRACCAR_PASSWORD?: string;
       OSRM_URL?: string;
+      OSRM_FOOT_URL?: string;
       MAP_INSET_TOP?: number;
       LINE_IS_DISABLED?: boolean;
     };
@@ -44,6 +45,13 @@ export const Env = {
    * tenant running its own should point this at it.
    */
   OSRM_URL: window?.env?.OSRM_URL ?? import.meta.env.VITE_OSRM_URL,
+  /**
+   * Walking router. A separate OSRM instance built on the foot profile,
+   * because the driving one sends a pedestrian round one-way systems and
+   * prices the walk at car speed. Defaults to ours.
+   */
+  OSRM_FOOT_URL:
+    window?.env?.OSRM_FOOT_URL ?? import.meta.env.VITE_OSRM_FOOT_URL,
   /**
    * Pixels of the map covered by the host's own chrome at the top — its search
    * bar. The host knows this and we do not, so it should say; without it a

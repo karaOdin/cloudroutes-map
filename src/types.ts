@@ -96,3 +96,45 @@ export type LeafletProvider = {
    */
   attribution: string;
 };
+
+/**
+ * A journey as the tenant API plans it and the host hands it over in
+ * `ROUTE_DATA`: walk, board, travel, transfer, …, arrive.
+ *
+ * Its own times are not to be relied on — measured against M'sila, a 9.6 km
+ * trip with a change of line came back as `total_time: 1` and
+ * `transfers: 0` — so anything time-related is worked out live from the
+ * vehicles instead. The shape and the stops are what it is trusted for.
+ */
+export type RouteStep = {
+  action: string;
+  type?: string;
+  line?: string;
+  at?: string;
+  to?: string;
+  from?: string;
+  stops?: number;
+  polyline?: LatLngExpression[];
+  color?: string;
+  stops_between?: string[];
+  duration?: number;
+  distance?: number;
+  location?: LatLngExpression;
+  price?: number;
+};
+
+export type RouteData = {
+  success: boolean;
+  type: string;
+  summary: string;
+  total_time: number;
+  total_price: number;
+  total_distance: number;
+  steps: RouteStep[];
+  metadata?: {
+    transfers?: number;
+    lines_used?: string[];
+    total_stops?: number;
+    warning?: string | null;
+  };
+};

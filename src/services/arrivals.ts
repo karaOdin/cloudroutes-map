@@ -64,7 +64,7 @@ export type ArrivalLine = {
   stopsAlong: number[];
 };
 
-function minutesFor(metres: number): { from: number; to: number } {
+export function minutesFor(metres: number): { from: number; to: number } {
   return {
     from: Math.max(1, Math.round(metres / ((FAST_KMH * 1000) / 60))),
     to: Math.max(2, Math.round(metres / ((SLOW_KMH * 1000) / 60))),

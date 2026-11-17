@@ -34,6 +34,8 @@ import { LinesSheet } from "./components/LinesSheet.tsx";
 import { BusesSheet } from "./components/BusesSheet.tsx";
 import { LinesCarousel } from "./components/LinesCarousel.tsx";
 import { useLocationStore } from "./hooks/use-location-store.ts";
+import { useJourney } from "./hooks/use-journey.ts";
+import { JourneyCard } from "./components/JourneyCard.tsx";
 import {
   FitNetworkControl,
   TileReadyFlag,
@@ -48,6 +50,7 @@ import { useGlobalStore } from "./store";
 import { useTranslation } from "react-i18next";
 import { LatLngExpression } from "leaflet";
 import L from "leaflet";
+import { RouteData, RouteStep } from "./types.ts";
 
 createClientApi({
   baseURL: Env.API_URL,
@@ -70,6 +73,7 @@ declare global {
       TRACCAR_USER?: string;
       TRACCAR_PASSWORD?: string;
       OSRM_URL?: string;
+      OSRM_FOOT_URL?: string;
       MAP_INSET_TOP?: number;
       LINE_IS_DISABLED?: boolean;
     };
@@ -79,39 +83,6 @@ declare global {
     };
   }
 }
-
-// Route data types
-type RouteStep = {
-  action: string;
-  type?: string;
-  line?: string;
-  at?: string;
-  to?: string;
-  from?: string;
-  stops?: number;
-  polyline?: LatLngExpression[];
-  color?: string;
-  stops_between?: string[];
-  duration?: number;
-  distance?: number;
-  location?: LatLngExpression;
-};
-
-type RouteData = {
-  success: boolean;
-  type: string;
-  summary: string;
-  total_time: number;
-  total_price: number;
-  total_distance: number;
-  steps: RouteStep[];
-  metadata?: {
-    transfers?: number;
-    lines_used?: string[];
-    total_stops?: number;
-    warning?: string | null;
-  };
-};
 
 /** Escapes text interpolated into marker HTML (stop names come from the API). */
 const escapeHtml = (value: string): string =>
@@ -453,9 +424,20 @@ function FitRouteBounds({ routeData }: { routeData: RouteData | null }) {
 
     if (allCoordinates.length > 0) {
       setTimeout(() => {
+        const padding = insetPadding(50);
+        // The journey card covers the bottom of the map; frame the route in
+        // what is left above it. Read when the timer fires, by which time the
+        // card has rendered and published its height.
+        const card = parseFloat(
+          map.getContainer().style.getPropertyValue("--journey-h")
+        );
+
+        if (Number.isFinite(card)) {
+          padding.paddingBottomRight = padding.paddingBottomRight.add([0, card]);
+        }
+
         map.fitBounds(allCoordinates as any, {
-          ...insetPadding(50),
-          padding: [50, 50],
+          ...padding,
           maxZoom: 16,
         });
       }, 300);
@@ -466,7 +448,18 @@ function FitRouteBounds({ routeData }: { routeData: RouteData | null }) {
 }
 
 // Route visualization component - renders directly on main map
-function RouteVisualization({ routeData }: { routeData: RouteData }) {
+function RouteVisualization({
+  routeData,
+  walkPath,
+}: {
+  routeData: RouteData;
+  /**
+   * The rider's walk to the first stop as the foot router draws it, from
+   * where they are now. Replaces the planner's first walk, which is drawn
+   * from where they were when they asked.
+   */
+  walkPath?: LatLngExpression[] | null;
+}) {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
 
@@ -529,7 +522,15 @@ function RouteVisualization({ routeData }: { routeData: RouteData }) {
     <>
       {/* Render polylines for all steps - Google Maps style with border */}
       {routeData.steps.map((step, index) => {
-        if (step.polyline && step.polyline.length > 0) {
+        const isFirstWalk =
+          isWalkStep(step) &&
+          !routeData.steps.slice(0, index).some((s) => s.action === "travel");
+        const positions =
+          isFirstWalk && walkPath && walkPath.length > 1
+            ? walkPath
+            : step.polyline;
+
+        if (positions && positions.length > 0) {
           const isWalk = isWalkStep(step);
           const mainColor = isWalk ? "#6B7280" : step.color || "#4285F4";
           const borderColor = isWalk
@@ -540,7 +541,7 @@ function RouteVisualization({ routeData }: { routeData: RouteData }) {
             <React.Fragment key={`route-polyline-${index}`}>
               {/* Border/outline polyline (darker, thicker) */}
               <Polyline
-                positions={step.polyline}
+                positions={positions}
                 pathOptions={{
                   color: borderColor,
                   weight: isWalk ? 6 : 10,
@@ -552,7 +553,7 @@ function RouteVisualization({ routeData }: { routeData: RouteData }) {
               />
               {/* Main route polyline (lighter, thinner) */}
               <Polyline
-                positions={step.polyline}
+                positions={positions}
                 pathOptions={{
                   color: mainColor,
                   weight: isWalk ? 4 : 6,
@@ -659,6 +660,7 @@ function App() {
   const setRouteLines = useRouteStore((state) => state.setRouteLines);
   const [appReady, setAppReady] = useState(false);
   const map = useRef<any>(null);
+  const live = useJourney(routeData);
   const leafletProvider = useGlobalStore((state) => state.leafletProvider);
 
   // Check if running in React Native WebView
@@ -798,10 +800,15 @@ function App() {
       {/* Route visualization - show when route exists */}
       {routeData && (
         <>
-          <RouteVisualization routeData={routeData} />
+          <RouteVisualization
+            routeData={routeData}
+            walkPath={live?.walk?.path}
+          />
           <FitRouteBounds routeData={routeData} />
         </>
       )}
+
+      {live && <JourneyCard live={live} />}
 
       <ZoomControl />
       <FocusBanner />
@@ -901,7 +908,8 @@ function App() {
         )}
       </div>
 
-      {displayLocation && location && (
+      {/* On a journey the rider is part of the answer, so they are drawn. */}
+      {(displayLocation || !!routeData) && location && (
         <Marker position={location} title="Me" icon={userIcon()} />
       )}
 
