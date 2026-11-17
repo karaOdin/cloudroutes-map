@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef } from "react";
 import { latLng, LatLng } from "leaflet";
 import { useLines } from "@cloudroutes/query/lines";
-import { arrivalsAt, minutesFor } from "../services/arrivals.ts";
+import { ArrivalLine, arrivalsAt, minutesFor } from "../services/arrivals.ts";
 import {
   AT_STOP_METRES,
   Band,
   Catch,
   catchable,
   estimatedWalk,
+  orientLine,
+  Ride,
 } from "../services/journey.ts";
 import { distanceAlong, distanceToPath } from "../services/route-path.ts";
 import { LiveJourney, LiveRide } from "./use-journey.ts";
@@ -72,14 +74,21 @@ export type GoState = {
 
 type NamedStop = { name: string; along: number };
 
-type LineGeometry = { path: LatLng[]; stops: NamedStop[] };
+type LineGeometry = {
+  path: LatLng[];
+  stops: NamedStop[];
+  /** The same line, as the arrivals at its boarding stop are measured on. */
+  arrival: ArrivalLine;
+};
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-function geometryOf(line: any): LineGeometry | null {
-  const base = toArrivalLine(line);
+/** The line as this ride travels it — see `orientLine`. */
+function geometryOf(line: any, ride: Ride): LineGeometry | null {
+  const drawn = toArrivalLine(line);
 
-  if (!base) return null;
+  if (!drawn) return null;
 
+  const base = orientLine(drawn, ride);
   const stops = ((line.bus_stops ?? []) as any[])
     .map((stop) => {
       const lat = parseFloat(stop.Lat ?? stop.latitude);
@@ -92,7 +101,7 @@ function geometryOf(line: any): LineGeometry | null {
     .filter((stop): stop is NamedStop => stop != null && Number.isFinite(stop.along))
     .sort((a, b) => a.along - b.along);
 
-  return { path: base.path, stops };
+  return { path: base.path, stops, arrival: base };
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -118,24 +127,20 @@ export function useGo(live: LiveJourney | null): GoState | null {
   const go = useGoStore();
   const { board, advance, nextLeg, arrive } = go;
 
-  const geometry = useMemo(() => {
-    const byName = new Map<string, LineGeometry>();
+  // One per ride, not per line: the same line can be ridden either way.
+  const geometry = useMemo(
+    () =>
+      (live?.rides ?? []).map((ride) => {
+        const line = lines?.find((one) => one.name === ride.line);
 
-    for (const ride of live?.rides ?? []) {
-      if (byName.has(ride.line)) continue;
-
-      const line = lines?.find((one) => one.name === ride.line);
-      const shape = line ? geometryOf(line) : null;
-
-      if (shape) byName.set(ride.line, shape);
-    }
-
-    return byName;
-  }, [lines, live?.rides]);
+        return line ? geometryOf(line, ride) : null;
+      }),
+    [lines, live?.rides]
+  );
 
   const here = live?.here ?? null;
   const ride = live?.rides[go.leg] ?? null;
-  const shape = ride ? geometry.get(ride.line) ?? null : null;
+  const shape = ride ? geometry[go.leg] ?? null : null;
 
   // Where the rider and this ride's two stops sit along the line.
   const position = useMemo(() => {
@@ -279,8 +284,7 @@ export function useGo(live: LiveJourney | null): GoState | null {
           : null;
     const walkMin = walk && !atStop ? Math.ceil(walk.seconds / 60) : 0;
 
-    const line = lines?.find((one) => one.name === ride.line);
-    const arrivalLine = line ? toArrivalLine(line) : null;
+    const arrivalLine = shape?.arrival ?? null;
     const caught =
       go.leg === 0
         ? catchable(live.arrivals, walkMin, atStop)
@@ -308,7 +312,7 @@ export function useGo(live: LiveJourney | null): GoState | null {
       remaining,
       stage: { kind: "walk", ride, metres: walk.metres, minutes: Math.max(1, walkMin), caught },
     };
-  }, [live, ride, go, position, shape, here, lines, buses]);
+  }, [live, ride, go, position, shape, here, buses]);
 
   // Say the moments that matter out loud — a buzz, and a message the host can
   // raise as a notification when the phone is in a pocket.

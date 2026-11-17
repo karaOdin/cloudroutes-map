@@ -1,7 +1,7 @@
 import { latLng, LatLng, LatLngExpression } from "leaflet";
 import { RouteData } from "../types.ts";
-import { Arrival, minutesFor } from "./arrivals.ts";
-import { distanceAlong } from "./route-path.ts";
+import { Arrival, ArrivalLine, minutesFor } from "./arrivals.ts";
+import { distanceAlong, measure } from "./route-path.ts";
 
 /**
  * A planned journey, made live.
@@ -151,6 +151,36 @@ export function readJourney(route: RouteData): Journey {
 }
 
 /** Distance between two stops along a line's own route, when it runs that way. */
+/**
+ * A line as this ride travels it.
+ *
+ * A line is drawn once, in one direction, and served both ways — Biskra's L2
+ * runs from Lbechache north, and a rider going back to Lbechache rides it
+ * against the drawing. Everything measured along the line assumes travel in
+ * drawn order: which buses are "coming", how far the ride is, how many stops
+ * are left. So where the ride's stop to get off sits behind its stop to
+ * board, the line is turned round first. Without this the card named a bus
+ * driving the other way as the one to catch.
+ *
+ * The return may use other streets than the drawing; projecting onto the
+ * reversed drawing is an approximation of it, and close enough to order buses
+ * and count stops by.
+ */
+export function orientLine(line: ArrivalLine, ride: Ride): ArrivalLine {
+  const from = distanceAlong(line.path, latLng(ride.board.lat, ride.board.lng));
+  const to = distanceAlong(line.path, latLng(ride.alight.lat, ride.alight.lng));
+
+  if (!(Number.isFinite(from) && Number.isFinite(to) && to < from)) return line;
+
+  const { total } = measure(line.path);
+
+  return {
+    name: line.name,
+    path: [...line.path].reverse(),
+    stopsAlong: line.stopsAlong.map((along) => total - along).sort((a, b) => a - b),
+  };
+}
+
 export function rideMetresAlong(
   path: LatLng[],
   ride: Ride

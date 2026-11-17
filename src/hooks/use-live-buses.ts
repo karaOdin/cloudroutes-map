@@ -1,11 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { Device } from "../types.ts";
 import { BusFreshness, busFreshness, busPositionAge } from "../helpers.ts";
-import { tidyVehicleName } from "../components/BusMarkers/bus-labels.ts";
 import { useDevicePosition } from "./use-device-position.ts";
 import { useNow } from "./use-now.ts";
 import { useVehicleLines } from "./use-vehicle-lines.ts";
-import { useDeclaredBuses } from "./use-declared-buses.ts";
+import { useDeclaredBuses, vehicleName } from "./use-declared-buses.ts";
 
 /**
  * Every vehicle the map is currently drawing, as a list.
@@ -29,7 +28,10 @@ export type LiveBus = {
   age: number;
   /** km/h. Traccar reports knots. */
   speed: number;
-  /** Compass heading in degrees, used to tell the two directions apart. */
+  /**
+   * Compass heading in degrees, used to tell the two directions apart. The
+   * last one seen while moving — see `MOVING_KMH`.
+   */
   course: number;
   /** Lines this vehicle is attributed to, declared or driven. */
   lines: string[];
@@ -38,6 +40,16 @@ export type LiveBus = {
 };
 
 const KNOTS_TO_KMH = 1.852;
+
+/**
+ * Below this a tracker's course is not a heading. A stopped bus reports 0 —
+ * due north — whichever way it faces, and one creeping through a stop
+ * swings tens of degrees between fixes. Seen in Biskra: a bus dwelling at a
+ * stop dropped out of "coming to you" and back every 30 s, because the
+ * direction test read its parked "north" as driving away. So a slow bus keeps
+ * the heading it last had while moving.
+ */
+const MOVING_KMH = 12;
 
 /** Stand-in matching the marker layers', so the list and the map agree. */
 function unknownDevice(deviceId: number): Device {
@@ -50,11 +62,28 @@ function unknownDevice(deviceId: number): Device {
   } as Device;
 }
 
+function heading(
+  memory: Map<number, number>,
+  id: number,
+  position: { course?: number; speed?: number }
+): number {
+  const course = position.course ?? 0;
+
+  if ((position.speed ?? 0) * KNOTS_TO_KMH >= MOVING_KMH) {
+    memory.set(id, course);
+
+    return course;
+  }
+
+  return memory.get(id) ?? course;
+}
+
 export function useLiveBuses(): LiveBus[] {
   const [positions, devices] = useDevicePosition();
   const now = useNow();
   const vehicleLines = useVehicleLines(positions?.data, devices?.data);
   const declared = useDeclaredBuses();
+  const headings = useRef(new Map<number, number>());
 
   return useMemo(() => {
     const known = devices?.data ?? [];
@@ -79,16 +108,13 @@ export function useLiveBuses(): LiveBus[] {
         // Traccar is the register, so its name leads. Where it has none, the
         // tenant's records may still know the number painted on the bus,
         // which is a real identifier where the device id is not.
-        name:
-          tidyVehicleName(device.name ?? "") ||
-          declared.get(device.uniqueId)?.number ||
-          `#${device.id}`,
+        name: vehicleName(declared, device),
         lat: position.latitude,
         lng: position.longitude,
         freshness,
         age: busPositionAge(device, position, now),
         speed: Math.max(0, (position.speed ?? 0) * KNOTS_TO_KMH),
-        course: position.course ?? 0,
+        course: heading(headings.current, device.id, position),
         lines: vehicleLines.get(device.id)?.lines ?? [],
         declared: vehicleLines.get(device.id)?.declared ?? false,
       });

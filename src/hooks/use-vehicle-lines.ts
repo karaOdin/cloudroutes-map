@@ -3,7 +3,7 @@ import { latLng } from "leaflet";
 import { Device, Position } from "../types.ts";
 import { distanceToPath } from "../services/route-path.ts";
 import { useDevicePaths } from "./use-device-paths.ts";
-import { useDeclaredBuses } from "./use-declared-buses.ts";
+import { declaredFor, useDeclaredBuses } from "./use-declared-buses.ts";
 import {
   lineFromDeviceName,
   lineNumbers,
@@ -74,9 +74,10 @@ export function useVehicleLines(
       // the records account for this vehicle, that is the answer, and it holds
       // whether the bus is on its route, at the depot or parked overnight.
       const device = byId.get(position.deviceId);
-      const stated = device?.uniqueId
-        ? declared.get(device.uniqueId)
-        : undefined;
+      const stated = declaredFor(declared, {
+        id: position.deviceId,
+        uniqueId: device?.uniqueId,
+      });
 
       if (stated) {
         attributed.set(position.deviceId, {

@@ -18,6 +18,7 @@ import { busIcon } from "../../icons.ts";
 import { mapInsets, panToVisible } from "../../services/map-insets.ts";
 import { BusFreshness, capitalize, formatAge } from "../../helpers.ts";
 import { tidyVehicleName } from "./bus-labels.ts";
+import { useDeclaredBuses, vehicleName } from "../../hooks/use-declared-buses.ts";
 import {
   FALLBACK_LINE_COLOUR,
   useLineColours,
@@ -124,7 +125,11 @@ function BusMarkerComponent({
   );
   const lineColours = useLineColours();
   const busCategory = capitalize(device?.category || "bus");
-  const busName = tidyVehicleName(device?.name ?? "Unknown");
+  const declared = useDeclaredBuses();
+  const busName =
+    device?.id != null
+      ? vehicleName(declared, { ...device, id: device.id })
+      : tidyVehicleName(device?.name ?? "Unknown");
   const isStale = freshness === "stale";
 
   /**

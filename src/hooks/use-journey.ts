@@ -12,6 +12,7 @@ import {
   catchable,
   estimatedWalk,
   Journey,
+  orientLine,
   readJourney,
   Ride,
   rideBand,
@@ -135,8 +136,14 @@ export function useJourney(route: RouteData | null): LiveJourney | null {
 
     const walkMin = walk && !atStop ? Math.ceil(walk.seconds / 60) : 0;
 
-    const firstLine = linesByName.get(first.line);
-    const arrivalLine = firstLine ? toArrivalLine(firstLine) : null;
+    const lineFor = (ride: Ride) => {
+      const line = linesByName.get(ride.line);
+      const drawn = line ? toArrivalLine(line) : null;
+
+      return drawn ? orientLine(drawn, ride) : null;
+    };
+
+    const arrivalLine = lineFor(first);
     const arrivals = arrivalLine
       ? arrivalsAt(first.board, [arrivalLine], buses)
       : [];
@@ -144,8 +151,7 @@ export function useJourney(route: RouteData | null): LiveJourney | null {
     const caught = catchable(arrivals, walkMin, atStop);
 
     const rides: LiveRide[] = journey.rides.map((ride) => {
-      const line = linesByName.get(ride.line);
-      const path = line ? toArrivalLine(line)?.path : null;
+      const path = lineFor(ride)?.path;
       const metres = (path && rideMetresAlong(path, ride)) ?? ride.metres;
 
       return {
