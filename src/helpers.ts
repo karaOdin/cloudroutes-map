@@ -54,6 +54,8 @@ export function darkenColor(color: string, amount: number = 0.3): string {
  */
 
 export async function initTraccarSession() {
+  if (!Env.TRACCAR_URL) return;
+
   await fetch(`${Env.TRACCAR_URL}/session?token=${Env.TRACCAR_TOKEN}`, {
     credentials: "include",
   });
@@ -112,7 +114,7 @@ export const traccarClient = axios.create({
  * feed falls back to polling.
  */
 export async function ensureTraccarSession(): Promise<void> {
-  if (!usesTraccarBasicAuth()) return;
+  if (!Env.TRACCAR_URL || !usesTraccarBasicAuth()) return;
 
   // A login, not the token. `GET /session?token=` is not reliable on these
   // servers: it answers 404 and still hands back a JSESSIONID, but an
@@ -133,6 +135,9 @@ export async function ensureTraccarSession(): Promise<void> {
 }
 
 export async function initTraccarClient() {
+  // No Traccar for this tenant: the request would go to our own origin.
+  if (!Env.TRACCAR_URL) return;
+
   await traccarClient.get("/session");
 }
 

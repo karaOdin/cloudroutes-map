@@ -17,16 +17,33 @@ declare global {
   }
 }
 
+/**
+ * A Traccar setting, or nothing when the tenant has no Traccar we can reach.
+ *
+ * Empty means "none", and so do `off` and `none`: Vercel will not store an
+ * empty variable, so a deployment that must not inherit another tenant's
+ * Traccar — Biskra over M'sila's — needs a word that says so.
+ */
+function traccarSetting(value: string | undefined): string | undefined {
+  const text = value?.trim();
+
+  return text && !/^(off|none)$/i.test(text) ? text : undefined;
+}
+
 export const Env = {
   API_URL:
     window?.env?.API_URL ??
     Storage.get("API_URL") ??
     import.meta?.env.VITE_API_URL,
-  TRACCAR_TOKEN:
-    window?.env?.TRACCAR_TOKEN ?? import.meta.env.VITE_TRACCAR_TOKEN,
-  TRACCAR_URL: window?.env?.TRACCAR_URL ?? import.meta.env.VITE_TRACCAR_URL,
-  TRACCAR_WS_URL:
-    window?.env?.TRACCAR_WS_URL ?? import.meta.env.VITE_TRACCAR_WS_URL,
+  TRACCAR_TOKEN: traccarSetting(
+    window?.env?.TRACCAR_TOKEN ?? import.meta.env.VITE_TRACCAR_TOKEN
+  ),
+  TRACCAR_URL: traccarSetting(
+    window?.env?.TRACCAR_URL ?? import.meta.env.VITE_TRACCAR_URL
+  ),
+  TRACCAR_WS_URL: traccarSetting(
+    window?.env?.TRACCAR_WS_URL ?? import.meta.env.VITE_TRACCAR_WS_URL
+  ),
   /**
    * Optional Traccar login, for tenants whose Traccar predates token auth.
    *

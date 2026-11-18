@@ -55,6 +55,8 @@ async function getPositions() {
  * error propagating and blanking the map.
  */
 async function getPositionsFromTraccar(fallback: Position[]) {
+  if (!Env.TRACCAR_URL) return fallback;
+
   try {
     const { data } = await traccarClient.get<Array<Position>>("/positions");
 
@@ -70,6 +72,10 @@ type DevicesResponse =
   | { devices?: Device[] | null; message?: string };
 
 async function getDevices() {
+  // Without a Traccar URL these would be asked of our own origin, which on a
+  // static host answers with the app's HTML.
+  if (!Env.TRACCAR_URL) return await getDevicesFromTenant();
+
   try {
     const { data } = await traccarClient.get<DevicesResponse>("/devices");
 
