@@ -148,7 +148,8 @@
     "caveat": "Estimation d’après la distance sur l’itinéraire",
     "min": "min",
     "no_time": "position ancienne",
-    "stops_away": "à {{count}} arrêts"
+    "stops_away_one": "à {{count}} arrêt",
+    "stops_away_other": "à {{count}} arrêts"
   },
   "journey": {
     "title": "Votre trajet",

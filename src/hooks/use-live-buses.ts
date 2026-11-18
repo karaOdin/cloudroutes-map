@@ -30,9 +30,10 @@ export type LiveBus = {
   speed: number;
   /**
    * Compass heading in degrees, used to tell the two directions apart. The
-   * last one seen while moving — see `MOVING_KMH`.
+   * last one seen while moving — see `MOVING_KMH` — and null when there has
+   * been none to see.
    */
-  course: number;
+  course: number | null;
   /** Lines this vehicle is attributed to, declared or driven. */
   lines: string[];
   /** True when the tenant's records name that line, rather than geometry. */
@@ -66,7 +67,7 @@ function heading(
   memory: Map<number, number>,
   id: number,
   position: { course?: number; speed?: number }
-): number {
+): number | null {
   const course = position.course ?? 0;
 
   if ((position.speed ?? 0) * KNOTS_TO_KMH >= MOVING_KMH) {
@@ -75,7 +76,15 @@ function heading(
     return course;
   }
 
-  return memory.get(id) ?? course;
+  const remembered = memory.get(id);
+
+  if (remembered != null) return remembered;
+
+  // Slow and never seen moving. Trackers that hold their last heading while
+  // stopped report it here and it can be used; exactly 0 is what the others
+  // send for "no heading", and reading it as due north is how a bus parked
+  // for the night came to be announced as two minutes away.
+  return course === 0 ? null : course;
 }
 
 export function useLiveBuses(): LiveBus[] {

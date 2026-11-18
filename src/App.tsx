@@ -39,6 +39,7 @@ import { JourneyCard } from "./components/JourneyCard.tsx";
 import { WhereTo } from "./components/WhereTo.tsx";
 import { PressToGo } from "./components/PressToGo.tsx";
 import { useTripStore } from "./hooks/use-trip-store.ts";
+import { useBrowserLocation } from "./hooks/use-browser-location.ts";
 import { GoMode } from "./components/GoMode.tsx";
 import { useGo } from "./hooks/use-go.ts";
 import { useGoStore } from "./hooks/use-go-store.ts";
@@ -457,8 +458,11 @@ function FitRouteBounds({ routeData }: { routeData: RouteData | null }) {
 function RouteVisualization({
   routeData,
   walkPath,
+  hideFirstWalk = false,
 }: {
   routeData: RouteData;
+  /** The rider is past the first stop, so the walk to it is not drawn. */
+  hideFirstWalk?: boolean;
   /**
    * The rider's walk to the first stop as the foot router draws it, from
    * where they are now. Replaces the planner's first walk, which is drawn
@@ -531,6 +535,9 @@ function RouteVisualization({
         const isFirstWalk =
           isWalkStep(step) &&
           !routeData.steps.slice(0, index).some((s) => s.action === "travel");
+
+        if (isFirstWalk && hideFirstWalk) return null;
+
         const positions =
           isFirstWalk && walkPath && walkPath.length > 1
             ? walkPath
@@ -664,6 +671,8 @@ function App() {
   const setHere = useLocationStore((state) => state.setHere);
   const routeData = useTripStore((state) => state.route);
   const setRouteFromHost = useTripStore((state) => state.setFromHost);
+
+  useBrowserLocation(routeData != null);
   const setRouteLines = useRouteStore((state) => state.setRouteLines);
   const [appReady, setAppReady] = useState(false);
   const map = useRef<any>(null);
@@ -671,6 +680,10 @@ function App() {
   const go = useGo(live);
   const isGoing = useGoStore((state) => state.active);
   const stopGo = useGoStore((state) => state.stop);
+  // The walk to the first stop is history once the rider is past it.
+  const pastFirstStop = useGoStore(
+    (state) => state.active && (state.onBoard || state.leg > 0 || state.arrivedAt != null)
+  );
   const leafletProvider = useGlobalStore((state) => state.leafletProvider);
 
   // Check if running in React Native WebView
@@ -695,7 +708,21 @@ function App() {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (!event.data) return;
-      const data = event.data;
+
+      // Hosts send either an object or the same thing as a JSON string, and
+      // other scripts post their own messages here too. Anything that is not
+      // an object once read is not for us — `"latitude" in` a string throws.
+      let data = event.data;
+
+      if (typeof data === "string") {
+        try {
+          data = JSON.parse(data);
+        } catch {
+          return;
+        }
+      }
+
+      if (typeof data !== "object" || data === null) return;
 
       // Handle location updates
       if (data.type === "LOCATION_UPDATE" && "latitude" in data) {
@@ -818,6 +845,7 @@ function App() {
           <RouteVisualization
             routeData={routeData}
             walkPath={live?.walk?.path}
+            hideFirstWalk={pastFirstStop}
           />
           <FitRouteBounds routeData={routeData} />
         </>

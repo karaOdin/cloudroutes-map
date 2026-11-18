@@ -44,6 +44,13 @@ const BESIDE_BUS_M = 80;
 /** This far along the line with no bus seen, and only a bus explains it. */
 const ALONG_WITHOUT_BUS_M = 250;
 
+/**
+ * Close enough to the boarding stop to have been "at it" — looser than
+ * standing at the pole, because a fix or two can be missed while a bus pulls
+ * in and the rider steps aboard.
+ */
+const REACHED_STOP_M = 100;
+
 /** "Get off now" from this close to the stop. */
 const GET_OFF_NOW_M = 150;
 
@@ -143,6 +150,13 @@ export function useGo(live: LiveJourney | null): GoState | null {
   const shape = ride ? geometry[go.leg] ?? null : null;
 
   // Where the rider and this ride's two stops sit along the line.
+  // Evidence gathered on this leg, kept per leg of this run of Go.
+  const evidence = useRef<{ key: string; reachedStop: boolean; startAlong: number | null }>({
+    key: "",
+    reachedStop: false,
+    startAlong: null,
+  });
+
   const position = useMemo(() => {
     if (!here || !ride || !shape) return null;
 
@@ -166,6 +180,20 @@ export function useGo(live: LiveJourney | null): GoState | null {
     const { along, off, boardAlong, alightAlong, toAlight, at } = position;
 
     if (!go.onBoard) {
+      const key = `${go.startedAt}:${go.leg}`;
+
+      if (evidence.current.key !== key) {
+        evidence.current = { key, reachedStop: false, startAlong: off <= ON_LINE_M ? along : null };
+      }
+
+      const seen = evidence.current;
+
+      if (at.distanceTo(latLng(ride.board.lat, ride.board.lng)) <= REACHED_STOP_M) {
+        seen.reachedStop = true;
+      }
+
+      seen.startAlong ??= off <= ON_LINE_M ? along : null;
+
       const leftStop =
         off <= ON_LINE_M &&
         along > boardAlong + LEFT_STOP_M &&
@@ -179,7 +207,18 @@ export function useGo(live: LiveJourney | null): GoState | null {
           at.distanceTo(latLng(bus.lat, bus.lng)) <= BESIDE_BUS_M
       );
 
-      if (besideBus || along > boardAlong + ALONG_WITHOUT_BUS_M) board(along);
+      // Being past the stop on the line proves nothing by itself: a rider can
+      // start out downstream of it, or walk to it along the street the bus
+      // uses and be overtaken by one. So they must have been at the stop —
+      // or, for a rider who only pressed Go once aboard, have travelled a
+      // good way along the line since, with a bus of it beside them.
+      const aboard = seen.reachedStop
+        ? besideBus || along > boardAlong + ALONG_WITHOUT_BUS_M
+        : besideBus &&
+          seen.startAlong != null &&
+          along - seen.startAlong >= ALONG_WITHOUT_BUS_M;
+
+      if (aboard) board(along);
 
       return;
     }
@@ -204,6 +243,7 @@ export function useGo(live: LiveJourney | null): GoState | null {
     go.onBoard,
     go.along,
     go.leg,
+    go.startedAt,
     board,
     advance,
     nextLeg,

@@ -148,7 +148,8 @@
     "caveat": "Estimated from distance along the route",
     "min": "min",
     "no_time": "no recent fix",
-    "stops_away": "{{count}} stops away"
+    "stops_away_one": "{{count}} stop away",
+    "stops_away_other": "{{count}} stops away"
   },
   "journey": {
     "title": "Your journey",

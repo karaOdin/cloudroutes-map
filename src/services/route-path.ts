@@ -87,6 +87,31 @@ function snap(path: LatLng[], target: LatLng): Snapped | null {
   };
 }
 
+/**
+ * The way the route runs at the point nearest `point`, in degrees.
+ *
+ * Taken from the segment the point actually projects onto. The nearest
+ * *vertex* is not the same thing: a bus just short of a corner is nearest the
+ * corner's vertex, and the segment after it points round the corner, up to a
+ * right angle away from the street the bus is on. Zero-length segments, which
+ * tenant drawings do contain, carry no direction and are stepped past.
+ */
+export function bearingAt(path: LatLng[], point: LatLng): number | null {
+  const snapped = snap(path, point);
+
+  if (!snapped) return null;
+
+  for (let i = snapped.index; i < path.length - 1; i += 1) {
+    if (path[i].distanceTo(path[i + 1]) > 0.5) return bearingBetween(path[i], path[i + 1]);
+  }
+
+  for (let i = snapped.index; i > 0; i -= 1) {
+    if (path[i - 1].distanceTo(path[i]) > 0.5) return bearingBetween(path[i - 1], path[i]);
+  }
+
+  return null;
+}
+
 /** Metres from a point to the nearest part of a polyline. */
 export function distanceToPath(path: LatLng[], point: LatLng): number {
   const snapped = snap(path, point);

@@ -1,5 +1,5 @@
 import { LatLng, latLng } from "leaflet";
-import { bearingBetween, distanceAlong } from "./route-path.ts";
+import { bearingAt, distanceAlong } from "./route-path.ts";
 
 /**
  * Which buses are coming to a stop, and roughly when.
@@ -51,7 +51,8 @@ export type ArrivalBus = {
   name: string;
   lat: number;
   lng: number;
-  course: number;
+  /** Null when the heading is not known; such a bus cannot be called "coming". */
+  course: number | null;
   age: number;
   lines: string[];
   declared: boolean;
@@ -73,19 +74,10 @@ export function minutesFor(metres: number): { from: number; to: number } {
 
 /** Is the bus travelling the way this stretch of the route runs? */
 function headingAgrees(path: LatLng[], here: LatLng, course: number): boolean {
-  let nearest = 0;
-  let best = Infinity;
+  const along = bearingAt(path, here);
 
-  for (let i = 0; i < path.length - 1; i += 1) {
-    const gap = path[i].distanceTo(here);
+  if (along == null) return true;
 
-    if (gap < best) {
-      best = gap;
-      nearest = i;
-    }
-  }
-
-  const along = bearingBetween(path[nearest], path[nearest + 1]);
   const apart = Math.abs(((course - along + 540) % 360) - 180);
 
   return apart <= 180 - OPPOSITE_DEGREES;
@@ -128,7 +120,7 @@ export function arrivalsAt(
       // Already past, or far enough away that it is not this journey.
       if (metres <= 0 || metres > MAX_AHEAD_M) continue;
 
-      if (!headingAgrees(line.path, at, bus.course)) continue;
+      if (bus.course == null || !headingAgrees(line.path, at, bus.course)) continue;
 
       found.push({
         deviceId: bus.id,

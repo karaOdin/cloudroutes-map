@@ -148,7 +148,12 @@
     "caveat": "تقدير بحسب المسافة على المسار",
     "min": "د",
     "no_time": "لا يوجد تحديث حديث",
-    "stops_away": "على بعد {{count}} محطات"
+    "stops_away_zero": "في المحطة",
+    "stops_away_one": "على بعد محطة واحدة",
+    "stops_away_two": "على بعد محطتين",
+    "stops_away_few": "على بعد {{count}} محطات",
+    "stops_away_many": "على بعد {{count}} محطة",
+    "stops_away_other": "على بعد {{count}} محطة"
   },
   "journey": {
     "title": "رحلتك",
