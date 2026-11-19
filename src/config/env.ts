@@ -30,11 +30,19 @@ function traccarSetting(value: string | undefined): string | undefined {
   return text && !/^(off|none)$/i.test(text) ? text : undefined;
 }
 
+/**
+ * The tenant the map shows when nothing says otherwise: M'sila. A host
+ * (`window.env`), a saved choice or `VITE_API_URL` all still win, so other
+ * tenants are unaffected; this only stops a deployment with no settings
+ * from opening on a map with nothing on it.
+ */
+const DEFAULT_API_URL = "https://msila.routes.devcloud.dz/api";
+
 export const Env = {
   API_URL:
     window?.env?.API_URL ??
     Storage.get("API_URL") ??
-    import.meta?.env.VITE_API_URL,
+    (import.meta?.env.VITE_API_URL || DEFAULT_API_URL),
   TRACCAR_TOKEN: traccarSetting(
     window?.env?.TRACCAR_TOKEN ?? import.meta.env.VITE_TRACCAR_TOKEN
   ),
