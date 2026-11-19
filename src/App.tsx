@@ -34,7 +34,7 @@ import { LinesSheet } from "./components/LinesSheet.tsx";
 import { BusesSheet } from "./components/BusesSheet.tsx";
 import { LinesCarousel } from "./components/LinesCarousel.tsx";
 import { useLocationStore } from "./hooks/use-location-store.ts";
-import { useJourney } from "./hooks/use-journey.ts";
+import { useCheckedJourney, useJourney } from "./hooks/use-journey.ts";
 import { JourneyCard } from "./components/JourneyCard.tsx";
 import { WhereTo } from "./components/WhereTo.tsx";
 import { PressToGo } from "./components/PressToGo.tsx";
@@ -528,8 +528,31 @@ function RouteVisualization({
     return step.action === "walk" || step.type === "walk";
   };
 
+  // A trip planned from a stop (`/find-route`) has no walk in it, but the
+  // rider is still somewhere else; the walk the foot router found is drawn
+  // on its own then.
+  const plannedFirstWalk = routeData.steps.some(
+    (step, index) =>
+      isWalkStep(step) &&
+      !routeData.steps.slice(0, index).some((s) => s.action === "travel")
+  );
+  const extraWalk =
+    !plannedFirstWalk && !hideFirstWalk && walkPath && walkPath.length > 1 ? walkPath : null;
+
   return (
     <>
+      {extraWalk && (
+        <>
+          <Polyline
+            positions={extraWalk}
+            pathOptions={{ color: "#4B5563", weight: 6, opacity: 1, lineCap: "round", lineJoin: "round", dashArray: "1, 12" }}
+          />
+          <Polyline
+            positions={extraWalk}
+            pathOptions={{ color: "#6B7280", weight: 4, opacity: 1, lineCap: "round", lineJoin: "round", dashArray: "1, 12" }}
+          />
+        </>
+      )}
       {/* Render polylines for all steps - Google Maps style with border */}
       {routeData.steps.map((step, index) => {
         const isFirstWalk =
@@ -673,6 +696,17 @@ function App() {
   const setRouteFromHost = useTripStore((state) => state.setFromHost);
 
   useBrowserLocation(routeData != null);
+
+  // A trip the line data shows to be wrong — a stop its line never passes,
+  // a change between lines that do not meet — is taken off the map, and the
+  // rider told which part is wrong, rather than sent to the wrong kerb.
+  const checked = useCheckedJourney(routeData);
+  const rejectTrip = useTripStore((state) => state.reject);
+  const tripIsWrong = (checked?.fatal.length ?? 0) > 0;
+
+  useEffect(() => {
+    if (checked && checked.fatal.length > 0) rejectTrip(checked.fatal[0]);
+  }, [checked, rejectTrip]);
   const setRouteLines = useRouteStore((state) => state.setRouteLines);
   const [appReady, setAppReady] = useState(false);
   const map = useRef<any>(null);
@@ -840,7 +874,7 @@ function App() {
       )}
 
       {/* Route visualization - show when route exists */}
-      {routeData && (
+      {routeData && !tripIsWrong && (
         <>
           <RouteVisualization
             routeData={routeData}

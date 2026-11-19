@@ -42,8 +42,10 @@ export type Arrival = {
   stopsAway: number;
   /** True when the line came from the operator rather than from geometry. */
   declared: boolean;
-  /** Null when the last fix is too old to say anything about time. */
+  /** Null when the last fix is too old, or the bus is parked, to say anything about time. */
   minutes: { from: number; to: number } | null;
+  /** On the route but not moving for a while: off duty, or a long layover. */
+  parked: boolean;
 };
 
 export type ArrivalBus = {
@@ -56,6 +58,8 @@ export type ArrivalBus = {
   age: number;
   lines: string[];
   declared: boolean;
+  /** Moving, or moved lately. Absent means unknown, and is not held against it. */
+  active?: boolean;
 };
 
 export type ArrivalLine = {
@@ -131,7 +135,11 @@ export function arrivalsAt(
           (along) => along > busAlong && along < stopAlong
         ).length,
         declared: bus.declared,
-        minutes: bus.age > NO_TIME_AFTER_MS ? null : minutesFor(metres),
+        // A parked bus is on the route but not coming; a time would be a
+        // promise. Its distance is still worth showing.
+        minutes:
+          bus.age > NO_TIME_AFTER_MS || bus.active === false ? null : minutesFor(metres),
+        parked: bus.active === false,
       });
     }
   }

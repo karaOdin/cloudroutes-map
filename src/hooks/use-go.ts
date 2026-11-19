@@ -16,6 +16,7 @@ import { LiveJourney, LiveRide } from "./use-journey.ts";
 import { toArrivalLine } from "./use-arrivals.ts";
 import { useGoStore } from "./use-go-store.ts";
 import { useLiveBuses } from "./use-live-buses.ts";
+import { lineKey } from "../services/plan-check.ts";
 
 /**
  * Where the rider is in their journey, and what to tell them next.
@@ -75,8 +76,12 @@ export type GoState = {
   stage: GoStage;
   leg: number;
   legs: number;
-  /** Minutes to the destination, and whether an unknown wait sits inside it. */
-  remaining: { band: Band; partial: boolean } | null;
+  /**
+   * Minutes to the destination, and whether an unknown wait sits inside it:
+   * a later change (`partial`), or the first bus itself when none is coming
+   * (`waitUnknown`).
+   */
+  remaining: { band: Band; partial: boolean; waitUnknown?: boolean } | null;
 };
 
 type NamedStop = { name: string; along: number };
@@ -138,7 +143,7 @@ export function useGo(live: LiveJourney | null): GoState | null {
   const geometry = useMemo(
     () =>
       (live?.rides ?? []).map((ride) => {
-        const line = lines?.find((one) => one.name === ride.line);
+        const line = lines?.find((one) => lineKey(String(one.name ?? "")) === lineKey(ride.line));
 
         return line ? geometryOf(line, ride) : null;
       }),
@@ -338,9 +343,15 @@ export function useGo(live: LiveJourney | null): GoState | null {
       caught.kind === "no_bus" || caught.kind === "missed"
         ? null
         : { from: Math.max(walkMin, caught.band.from), to: Math.max(walkMin, caught.band.to) };
+    // With no bus to time, the trip still has a length: the walk and the
+    // rides. Said as that plus a wait, not left blank.
     const remaining = wait
       ? { band: addBands([wait, ride.band, ...later]), partial: later.length > 0 }
-      : null;
+      : {
+          band: addBands([{ from: walkMin, to: walkMin }, ride.band, ...later]),
+          partial: true,
+          waitUnknown: true,
+        };
 
     if (atStop || !walk) {
       return { leg: go.leg, legs, remaining, stage: { kind: "wait", ride, caught } };

@@ -685,9 +685,47 @@ trip lives in `use-trip-store.ts`, and the host is kept informed:
 | map → host | `ROUTE_CLEARED` | The rider closed the trip card or cancelled planning. |
 | map → host | `REQUEST_LOCATION` | A trip needs the rider's position and none has arrived; the map waits 4 s for a `LOCATION_UPDATE`. |
 | map → host | `JOURNEY_STAGE { stage, leg, stop }` | Go mode moved on: `walk`, `wait`, `ride`, `get_off_next`, `get_off_now`, `arrived`. Worth a notification for the last three. |
+| map → host | `ROUTE_REJECTED { reason, issue }` | A trip (the host's or the rider's) was taken off the map because the line data shows it to be wrong. `reason` is `stop_off_line`, `transfer_gap`, `unknown_line` or `nothing_to_ride`; `issue` names the line, stops and distance. The host should drop it from its own list too. |
 
-Outside the app the page asks the browser for location instead, which only
-works on a secure origin (https or localhost).
+Outside the app the page asks the browser for location instead, and follows
+the rider while a trip is open. That only works on a secure origin (https or
+localhost).
+
+### Trips the line data shows to be wrong
+
+Tenants draw their own lines, and the planner believes what they entered.
+`src/services/plan-check.ts` checks every trip against the drawn lines before
+it is shown, and refuses it, saying which part is wrong, when:
+
+- a stop it boards or leaves at is more than 300 m from that line's route.
+  Biskra lists its bus depot on L1, L8 and L10, 0.7 to 3.4 km off their
+  routes, and plans said "board L10 at the depot";
+- a change of lines asks for more than 500 m between the two stops;
+- it names a line the line list does not have.
+
+Rides that go nowhere (getting off where you got on) are dropped. Stops that
+no line serves are not offered as destinations, and lines with neither a route
+nor stops are left out of the line chips and the lines sheet.
+
+What every tenant's data looked like when this was written (`/lines`,
+2026-11-19):
+
+| Tenant | Mistakes found |
+| --- | --- |
+| Biskra | Depot listed as a stop on 3 lines (up to 3.4 km off route); other stops 230-410 m off their lines, some on several lines; a route with a 770 m gap; 4 lines with no buses; 3 stops on no line |
+| M'sila | 5 lines with no stops and no route; 3 stops 160-410 m off Line 16/17; 10 stops on no line |
+| Aïn Témouchent | Gaps of 780-890 m in 3 routes; 36 stops on no line |
+| Constantine | A route starting 17 km from its first stop; 3 more route ends over 1 km from any stop; 9 stops 170-310 m off; 3 groups of lines with no stop in common |
+| Djelfa, Chlef | `/lines` did not answer within 60 s |
+
+### When no bus is coming
+
+The card tells apart "none heading here yet" (buses are running on the line)
+and "none on the road" (none is reporting from the route while moving). A
+tracker keeps reporting from a bus parked overnight, so a bus only counts as
+running once it has moved in the last 10 minutes, by its speed or Traccar's
+`motion` flag. A parked bus gets no arrival time, and Go mode shows the trip
+length as "arrive + wait" instead of blanks.
 
 ## 7. Diagnostics
 

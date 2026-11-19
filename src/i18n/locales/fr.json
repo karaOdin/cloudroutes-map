@@ -150,7 +150,8 @@
     "min": "min",
     "no_time": "position ancienne",
     "stops_away_one": "à {{count}} arrêt",
-    "stops_away_other": "à {{count}} arrêts"
+    "stops_away_other": "à {{count}} arrêts",
+    "parked": "à l'arrêt"
   },
   "journey": {
     "title": "Votre trajet",
@@ -170,7 +171,7 @@
     "running_one": "{{count}} bus en circulation sur la ligne",
     "running_other": "{{count}} bus en circulation sur la ligne",
     "running": "{{count}} bus en circulation sur la ligne",
-    "none_running": "Aucun bus ne signale sa position sur cette ligne",
+    "none_running": "Les bus ne circulent peut-être pas à cette heure. Le trajet reste affiché pour vous organiser.",
     "get_off_at": "Descendez à {{stop}}",
     "arrive_at": "Arrivée à {{stop}}",
     "leave_in": "Partez dans {{minutes}} min",
@@ -185,7 +186,8 @@
     "from_stop": "à {{stop}}",
     "show_bus": "Voir ce bus sur la carte",
     "no_location": "Votre position n’est pas partagée : la marche est l’estimation du planificateur",
-    "walk_estimated": "Marche estimée à vol d’oiseau — le calcul piéton n’a pas répondu"
+    "walk_estimated": "Marche estimée à vol d’oiseau — le calcul piéton n’a pas répondu",
+    "no_bus_running": "Aucun bus {{line}} en circulation pour le moment"
   },
   "go": {
     "start": "C’est parti",
@@ -205,7 +207,8 @@
     "recenter": "Recentrer",
     "locating": "En attente de votre position…",
     "arrival_plus": "Arrivée + corresp.",
-    "leg": "Bus {{leg}} sur {{legs}}"
+    "leg": "Bus {{leg}} sur {{legs}}",
+    "plus_wait": "Arrivée + attente"
   },
   "trip": {
     "new": "Nouveau",
@@ -232,6 +235,10 @@
     "close": "Fermer le trajet",
     "problem_no_location": "Position introuvable. Activez la localisation ou choisissez un arrêt de départ.",
     "problem_no_route": "Aucun trajet en bus trouvé. Essayez un arrêt proche.",
-    "problem_failed": "Impossible de planifier le trajet. Vérifiez votre connexion et réessayez."
+    "problem_failed": "Impossible de planifier le trajet. Vérifiez votre connexion et réessayez.",
+    "stop_unserved": "Aucune ligne ne dessert encore cet arrêt.",
+    "problem_bad_stop": "Trajet non affiché : {{line}} ne passe pas par {{stop}} (son tracé est à {{distance}}). Les données de la ligne sont à corriger. Essayez un arrêt proche.",
+    "problem_bad_transfer": "Trajet non affiché : la correspondance de {{from}} à {{to}} demande {{distance}} à pied, les deux lignes ne se croisent pas vraiment. Essayez un autre arrêt.",
+    "problem_bad_line": "Trajet non affiché : {{line}} n'est pas sur la carte, impossible de la vérifier ou de la suivre."
   }
 }

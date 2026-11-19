@@ -9,6 +9,7 @@ import {
   LatLngExpression,
 } from "leaflet";
 import { useLines } from "@cloudroutes/query/lines";
+import { lineIsEmpty } from "../services/plan-check.ts";
 import { Line } from "@cloudroutes/core/lines";
 import { insetPadding } from "../services/map-insets.ts";
 import { useFocusStore } from "../hooks/use-focus-store.ts";
@@ -103,7 +104,7 @@ export function LinesCarousel({ hidden = false }: { hidden?: boolean }) {
         role="group"
         aria-label={t("lines_sheet.title")}
       >
-        {(lines as Line[]).map((line) => {
+        {(lines as Line[]).filter((line) => !lineIsEmpty(line)).map((line) => {
           const colour = lineColours.get(line.name) ?? FALLBACK_LINE_COLOUR;
           const active = focusedLine === line.name;
 

@@ -5994,6 +5994,15 @@ body:has(.route-results-wrapper) .leaflet-popup {
 }
 
 /* --- Take me here, on a stop --- */
+.stop-unserved {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--brand-100);
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
 .stop-go {
   display: flex;
   align-items: center;

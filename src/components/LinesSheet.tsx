@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { latLng, latLngBounds } from "leaflet";
 import { QUERY_KEYS } from "@cloudroutes/query";
 import { useLines, useStops } from "@cloudroutes/query/lines";
+import { lineIsEmpty } from "../services/plan-check.ts";
 import { Line } from "@cloudroutes/core/lines";
 import { distanceAlong } from "../services/route-path.ts";
 import { orderStopsByRoad } from "../services/stop-order.ts";
@@ -187,7 +188,7 @@ export function LinesSheet({
   });
 
   const sheetLines = useMemo(
-    () => (lines ? toSheetLines(lines as Line[]) : []),
+    () => (lines ? toSheetLines((lines as Line[]).filter((line) => !lineIsEmpty(line))) : []),
     [lines]
   );
 

@@ -20,6 +20,8 @@ import {
   walkSeconds,
 } from "../services/journey.ts";
 import { walkingRoute } from "../services/walking.ts";
+import { checkJourney, lineKey, PlanCheck } from "../services/plan-check.ts";
+import { distanceToPath } from "../services/route-path.ts";
 import { toArrivalLine } from "./use-arrivals.ts";
 import { useLiveBuses } from "./use-live-buses.ts";
 import { useLocationStore } from "./use-location-store.ts";
@@ -56,9 +58,32 @@ export type JourneyWalk = {
 export type LiveRide = Ride & {
   /** Minutes on board. */
   band: Band;
-  /** Vehicles currently attributed to the line, anywhere on it. */
+  /**
+   * Vehicles of the line that are in service: reporting now, moving or
+   * lately moved, and on the line's route rather than at a depot off it.
+   */
   running: number;
 };
+
+/**
+ * A bus further than this from its line's route is not in service on it —
+ * at the depot, or off for the night with its tracker still reporting.
+ */
+const IN_SERVICE_M = 150;
+
+/**
+ * The trip as planned, checked against the lines — see `checkJourney`. Null
+ * until both the trip and the lines are in, so nothing is judged on half the
+ * data.
+ */
+export function useCheckedJourney(route: RouteData | null): PlanCheck | null {
+  const { data: lines } = useLines();
+
+  return useMemo(
+    () => (route && lines ? checkJourney(readJourney(route), lines) : null),
+    [route, lines]
+  );
+}
 
 export type LiveJourney = {
   journey: Journey;
@@ -80,7 +105,10 @@ export function useJourney(route: RouteData | null): LiveJourney | null {
   const buses = useLiveBuses();
   const here = useLocationStore((state) => state.here);
 
-  const journey = useMemo(() => (route ? readJourney(route) : null), [route]);
+  const checked = useCheckedJourney(route);
+  // A trip with a fatal mistake is taken off the map by the trip guard; until
+  // then it is not followed.
+  const journey = checked && checked.fatal.length === 0 ? checked.journey : null;
   const firstStop = journey?.rides[0]?.board ?? null;
 
   const gridLat = here ? snapToGrid(here[0]) : null;
@@ -99,7 +127,7 @@ export function useJourney(route: RouteData | null): LiveJourney | null {
   });
 
   const linesByName = useMemo(
-    () => new Map((lines ?? []).map((line) => [line.name, line])),
+    () => new Map((lines ?? []).map((line) => [lineKey(String(line.name ?? "")), line])),
     [lines]
   );
 
@@ -137,7 +165,7 @@ export function useJourney(route: RouteData | null): LiveJourney | null {
     const walkMin = walk && !atStop ? Math.ceil(walk.seconds / 60) : 0;
 
     const lineFor = (ride: Ride) => {
-      const line = linesByName.get(ride.line);
+      const line = linesByName.get(lineKey(ride.line));
       const drawn = line ? toArrivalLine(line) : null;
 
       return drawn ? orientLine(drawn, ride) : null;
@@ -153,13 +181,15 @@ export function useJourney(route: RouteData | null): LiveJourney | null {
     const rides: LiveRide[] = journey.rides.map((ride) => {
       const path = lineFor(ride)?.path;
       const metres = (path && rideMetresAlong(path, ride)) ?? ride.metres;
+      const running = buses.filter(
+        (bus) =>
+          bus.lines.includes(ride.line) &&
+          bus.freshness === "live" &&
+          bus.active &&
+          (!path || distanceToPath(path, latLng(bus.lat, bus.lng)) <= IN_SERVICE_M)
+      ).length;
 
-      return {
-        ...ride,
-        metres,
-        band: rideBand(metres),
-        running: buses.filter((bus) => bus.lines.includes(ride.line)).length,
-      };
+      return { ...ride, metres, band: rideBand(metres), running };
     });
 
     return {

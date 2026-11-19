@@ -72,6 +72,7 @@ export function WhereTo() {
   const [hint, setHint] = useState(() => !hintSeen());
   const planning = useTripStore((state) => state.planning);
   const problem = useTripStore((state) => state.problem);
+  const problemDetail = useTripStore((state) => state.problemDetail);
   const dismissProblem = useTripStore((state) => state.dismissProblem);
   const clear = useTripStore((state) => state.clear);
 
@@ -114,7 +115,15 @@ export function WhereTo() {
 
         {problem && (
           <div className="where-to__problem" role="alert">
-            <span>{t(`trip.problem_${problem}`)}</span>
+            <span>
+              {t(`trip.problem_${problem}`, {
+                ...problemDetail,
+                distance:
+                  typeof problemDetail?.metres === "number"
+                    ? metresLabel(problemDetail.metres)
+                    : "",
+              })}
+            </span>
             <button type="button" onClick={dismissProblem} aria-label={t("filters.close")}>
               <CloseGlyph size={14} />
             </button>
@@ -187,7 +196,15 @@ function TripSheet({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
           lng: parseFloat(stop.longitude ?? stop.Long),
           lines: (stop.lines ?? []).map((line: any) => String(line.name)),
         }))
-        .filter((stop) => stop.name && Number.isFinite(stop.lat) && Number.isFinite(stop.lng)),
+        // A stop no line serves is entered but not in service — tenants
+        // leave from 3 to 36 of them — and a trip to it can only fail.
+        .filter(
+          (stop) =>
+            stop.name &&
+            stop.lines.length > 0 &&
+            Number.isFinite(stop.lat) &&
+            Number.isFinite(stop.lng)
+        ),
     /* eslint-enable @typescript-eslint/no-explicit-any */
   });
 

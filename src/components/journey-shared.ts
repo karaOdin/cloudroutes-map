@@ -115,7 +115,12 @@ export function describeCatch(
       };
     default:
       return {
-        headline: t("journey.no_bus", { line: context.line }),
+        // None heading here and none on the line at all are different
+        // answers: the first says wait, the second says not now.
+        headline:
+          context.running > 0
+            ? t("journey.no_bus", { line: context.line })
+            : t("journey.no_bus_running", { line: context.line }),
         detail:
           context.running > 0
             ? t("journey.running", { count: context.running })

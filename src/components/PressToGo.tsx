@@ -24,7 +24,7 @@ const SLOP_PX = 10;
 /** Further than this from any stop, there is no honest "nearest stop". */
 const MAX_STOP_M = 1500;
 
-type Stop = { name: string; lat: number; lng: number };
+type Stop = { name: string; lat: number; lng: number; served: boolean };
 
 const pinIcon = divIcon({
   className: "press-pin",
@@ -49,8 +49,13 @@ export function PressToGo() {
           name: String(stop.name ?? ""),
           lat: parseFloat(stop.latitude ?? stop.Lat),
           lng: parseFloat(stop.longitude ?? stop.Long),
+          served: (stop.lines ?? []).length > 0,
         }))
-        .filter((stop) => stop.name && Number.isFinite(stop.lat) && Number.isFinite(stop.lng)),
+        // Only stops a line serves: the nearest stop is offered as a trip.
+        .filter(
+          (stop) =>
+            stop.name && stop.served && Number.isFinite(stop.lat) && Number.isFinite(stop.lng)
+        ),
     /* eslint-enable @typescript-eslint/no-explicit-any */
   });
 

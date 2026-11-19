@@ -8,6 +8,7 @@ import {
   TripFrom,
 } from "../services/plan-trip.ts";
 import { useLocationStore } from "./use-location-store.ts";
+import { PlanIssue } from "../services/plan-check.ts";
 
 /**
  * The trip on the map, whoever asked for it.
@@ -18,7 +19,14 @@ import { useLocationStore } from "./use-location-store.ts";
  * search can follow along.
  */
 
-export type TripProblem = "no_location" | "no_route" | "failed";
+export type TripProblem =
+  | "no_location"
+  | "no_route"
+  | "failed"
+  /** The planner answered, but with a trip the line data shows to be wrong. */
+  | "bad_stop"
+  | "bad_transfer"
+  | "bad_line";
 
 type State = {
   route: RouteData | null;
@@ -26,6 +34,8 @@ type State = {
   source: "host" | "rider" | null;
   planning: string | null;
   problem: TripProblem | null;
+  /** Names and distances for the problem's message. */
+  problemDetail: Record<string, string | number> | null;
 };
 
 type Actions = {
@@ -33,7 +43,31 @@ type Actions = {
   plan: (to: string, from?: { stop: string }) => Promise<void>;
   clear: () => void;
   dismissProblem: () => void;
+  /** Take a trip off the map because its data is wrong, and say why. */
+  reject: (issue: PlanIssue) => void;
 };
+
+function describeIssue(issue: PlanIssue): {
+  problem: TripProblem;
+  detail: Record<string, string | number> | null;
+} {
+  switch (issue.kind) {
+    case "stop_off_line":
+      return {
+        problem: "bad_stop",
+        detail: { line: issue.line, stop: issue.stop, metres: Math.round(issue.metres) },
+      };
+    case "transfer_gap":
+      return {
+        problem: "bad_transfer",
+        detail: { from: issue.from, to: issue.to, metres: Math.round(issue.metres) },
+      };
+    case "unknown_line":
+      return { problem: "bad_line", detail: { line: issue.line } };
+    default:
+      return { problem: "no_route", detail: null };
+  }
+}
 
 function tellHost(message: Record<string, unknown>) {
   try {
@@ -48,12 +82,19 @@ export const useTripStore = create<State & Actions>((set, get) => ({
   source: null,
   planning: null,
   problem: null,
+  problemDetail: null,
 
   setFromHost: (route) =>
-    set({ route, source: route ? "host" : null, planning: null, problem: null }),
+    set({
+      route,
+      source: route ? "host" : null,
+      planning: null,
+      problem: null,
+      problemDetail: null,
+    }),
 
   plan: async (to, from) => {
-    set({ planning: to, problem: null });
+    set({ planning: to, problem: null, problemDetail: null });
 
     let origin: TripFrom;
 
@@ -81,7 +122,7 @@ export const useTripStore = create<State & Actions>((set, get) => ({
       if (get().planning !== to) return;
 
       rememberPlace(to);
-      set({ route, source: "rider", planning: null, problem: null });
+      set({ route, source: "rider", planning: null, problem: null, problemDetail: null });
       tellHost({ type: "ROUTE_PLANNED", destination: to, routeData: route });
     } catch (error) {
       if (get().planning !== to) return;
@@ -94,9 +135,17 @@ export const useTripStore = create<State & Actions>((set, get) => ({
   },
 
   clear: () => {
-    set({ route: null, source: null, planning: null, problem: null });
+    set({ route: null, source: null, planning: null, problem: null, problemDetail: null });
     tellHost({ type: "ROUTE_CLEARED" });
   },
 
-  dismissProblem: () => set({ problem: null }),
+  dismissProblem: () => set({ problem: null, problemDetail: null }),
+
+  reject: (issue) => {
+    const { problem, detail } = describeIssue(issue);
+
+    set({ route: null, source: null, planning: null, problem, problemDetail: detail });
+    // The host may be showing the same trip in its own list; it should know.
+    tellHost({ type: "ROUTE_REJECTED", reason: issue.kind, issue });
+  },
 }));

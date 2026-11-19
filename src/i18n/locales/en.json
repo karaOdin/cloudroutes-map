@@ -150,7 +150,8 @@
     "min": "min",
     "no_time": "no recent fix",
     "stops_away_one": "{{count}} stop away",
-    "stops_away_other": "{{count}} stops away"
+    "stops_away_other": "{{count}} stops away",
+    "parked": "not moving"
   },
   "journey": {
     "title": "Your journey",
@@ -170,7 +171,7 @@
     "running_one": "{{count}} bus running on the line",
     "running_other": "{{count}} buses running on the line",
     "running": "{{count}} buses running on the line",
-    "none_running": "No bus is reporting on this line right now",
+    "none_running": "Buses may not be running at this hour. The trip stays here so you can plan ahead.",
     "get_off_at": "Get off at {{stop}}",
     "arrive_at": "Arrive at {{stop}}",
     "leave_in": "Leave in {{minutes}} min",
@@ -185,7 +186,8 @@
     "from_stop": "at {{stop}}",
     "show_bus": "Show this bus on the map",
     "no_location": "Your position isn't shared, so the walk is the planner's estimate",
-    "walk_estimated": "Walk estimated in a straight line — the walking router didn't answer"
+    "walk_estimated": "Walk estimated in a straight line — the walking router didn't answer",
+    "no_bus_running": "No {{line}} bus on the road right now"
   },
   "go": {
     "start": "Go",
@@ -205,7 +207,8 @@
     "recenter": "Recenter",
     "locating": "Waiting for your location…",
     "arrival_plus": "Arrive + change",
-    "leg": "Bus {{leg}} of {{legs}}"
+    "leg": "Bus {{leg}} of {{legs}}",
+    "plus_wait": "Arrive + wait"
   },
   "trip": {
     "new": "New",
@@ -232,6 +235,10 @@
     "close": "Close trip",
     "problem_no_location": "We couldn't find your location. Turn location on, or choose a starting stop.",
     "problem_no_route": "No bus trip found to there. Try a nearby stop.",
-    "problem_failed": "Couldn't plan the trip. Check your connection and try again."
+    "problem_failed": "Couldn't plan the trip. Check your connection and try again.",
+    "stop_unserved": "No bus line serves this stop yet.",
+    "problem_bad_stop": "We didn't show this trip: {{line}} doesn't pass {{stop}} (its route is {{distance}} away). The line's data needs fixing. Try a stop nearby.",
+    "problem_bad_transfer": "We didn't show this trip: the change from {{from}} to {{to}} is a {{distance}} walk, so the two lines don't really meet. Try another stop.",
+    "problem_bad_line": "We didn't show this trip: {{line}} isn't on the map, so it can't be checked or followed."
   }
 }

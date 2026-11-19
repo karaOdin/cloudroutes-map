@@ -38,7 +38,19 @@ export type LiveBus = {
   lines: string[];
   /** True when the tenant's records name that line, rather than geometry. */
   declared: boolean;
+  /**
+   * Whether the bus is moving or moved lately. A tracker keeps reporting
+   * through the night from a bus parked on its own route, and without this
+   * every one of them counted as "running".
+   */
+  active: boolean;
 };
+
+/** Faster than this is moving, not GPS drift. */
+const MOVING_NOW_KMH = 5;
+
+/** A bus that moved this recently is in service, waiting at a stop or a light. */
+const ACTIVE_FOR_MS = 10 * 60_000;
 
 const KNOTS_TO_KMH = 1.852;
 
@@ -93,6 +105,7 @@ export function useLiveBuses(): LiveBus[] {
   const vehicleLines = useVehicleLines(positions?.data, devices?.data);
   const declared = useDeclaredBuses();
   const headings = useRef(new Map<number, number>());
+  const lastMoved = useRef(new Map<number, number>());
 
   return useMemo(() => {
     const known = devices?.data ?? [];
@@ -112,6 +125,15 @@ export function useLiveBuses(): LiveBus[] {
       // Not drawn on the map, so not listed here either.
       if (freshness === "offline") continue;
 
+      const speed = Math.max(0, (position.speed ?? 0) * KNOTS_TO_KMH);
+      // Traccar's own motion flag counts too: it carries over the gaps
+      // between fixes that our speed reading misses.
+      const motion = (position.attributes as { motion?: boolean } | undefined)?.motion;
+
+      if (speed >= MOVING_NOW_KMH || motion === true) lastMoved.current.set(device.id, now);
+
+      const movedAt = lastMoved.current.get(device.id);
+
       list.push({
         id: device.id,
         // Traccar is the register, so its name leads. Where it has none, the
@@ -122,10 +144,11 @@ export function useLiveBuses(): LiveBus[] {
         lng: position.longitude,
         freshness,
         age: busPositionAge(device, position, now),
-        speed: Math.max(0, (position.speed ?? 0) * KNOTS_TO_KMH),
+        speed,
         course: heading(headings.current, device.id, position),
         lines: vehicleLines.get(device.id)?.lines ?? [],
         declared: vehicleLines.get(device.id)?.declared ?? false,
+        active: movedAt != null && now - movedAt <= ACTIVE_FOR_MS,
       });
     }
 

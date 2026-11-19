@@ -239,7 +239,11 @@ export function GoMode({ live, go }: { live: LiveJourney; go: GoState }) {
                   : "--:--"}
               </span>
               <span className="go-bar__label">
-                {go.remaining?.partial ? t("go.arrival_plus") : t("journey.arrive")}
+                {go.remaining?.waitUnknown
+                  ? t("go.plus_wait")
+                  : go.remaining?.partial
+                    ? t("go.arrival_plus")
+                    : t("journey.arrive")}
               </span>
             </div>
             <div className="go-bar__cell">

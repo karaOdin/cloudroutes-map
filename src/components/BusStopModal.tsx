@@ -159,17 +159,23 @@ export function BusStopModal({
         {/* Body */}
         <div className="bus-stop-modal-body">
           {/* First, because it is what most riders opening a stop want. */}
-          <button
-            type="button"
-            className="stop-go"
-            onClick={() => {
-              onClose();
-              void plan(stop.title);
-            }}
-          >
-            <GoGlyph size={18} />
-            <span>{t("trip.take_me_here")}</span>
-          </button>
+          {/* A stop no line serves cannot be reached by bus; offering a trip
+              there only ends in "no route". */}
+          {stop.lines.length > 0 ? (
+            <button
+              type="button"
+              className="stop-go"
+              onClick={() => {
+                onClose();
+                void plan(stop.title);
+              }}
+            >
+              <GoGlyph size={18} />
+              <span>{t("trip.take_me_here")}</span>
+            </button>
+          ) : (
+            <p className="stop-unserved">{t("trip.stop_unserved")}</p>
+          )}
 
           {/* Lines Section */}
           <div className="bus-stop-section">
@@ -352,7 +358,9 @@ function ArrivalRow({
             <span className="arrival__unit">{t("arrivals.min")}</span>
           </>
         ) : (
-          <span className="arrival__unknown">{t("arrivals.no_time")}</span>
+          <span className="arrival__unknown">
+            {t(arrival.parked ? "arrivals.parked" : "arrivals.no_time")}
+          </span>
         )}
       </span>
     </li>
