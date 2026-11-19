@@ -112,7 +112,8 @@
     "streets": "Rues",
     "dark": "Sombre",
     "satellite": "Satellite",
-    "terrain": "Relief"
+    "terrain": "Relief",
+    "language": "Langue"
   },
   "follow": {
     "following": "Suivi du bus",

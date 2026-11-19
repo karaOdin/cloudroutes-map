@@ -4283,6 +4283,36 @@ body:has(.route-results-wrapper) .leaflet-popup {
   gap: 8px;
 }
 
+.map-style__languages {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+/* A second heading sits under the styles, not flush against them. */
+.map-style__options + .map-style__heading {
+  margin-top: 14px;
+}
+
+.map-style__language {
+  min-height: 36px;
+  padding: 6px 4px;
+  border: 1.5px solid rgba(15, 23, 42, 0.12);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text-primary, #0f172a);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.map-style__language[aria-pressed="true"] {
+  border-color: var(--brand-500);
+  background: var(--brand-100);
+  color: var(--brand-700);
+}
+
 .map-style__option {
   display: flex;
   flex-direction: column;

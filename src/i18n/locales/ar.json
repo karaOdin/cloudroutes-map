@@ -112,7 +112,8 @@
     "streets": "شوارع",
     "dark": "داكن",
     "satellite": "قمر صناعي",
-    "terrain": "تضاريس"
+    "terrain": "تضاريس",
+    "language": "اللغة"
   },
   "follow": {
     "following": "تتبع الحافلة",

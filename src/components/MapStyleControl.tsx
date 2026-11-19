@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { LEAFLET_PROVIDERS } from "../constants";
 import { LeafletProvider } from "../types.ts";
 import { useGlobalStore } from "../store";
+import { LANGUAGES } from "../i18n/index.ts";
 
 /** Zoom the thumbnails are rendered at: enough context to tell styles apart. */
 const PREVIEW_ZOOM = 13;
@@ -39,7 +40,10 @@ function tileUrl(provider: LeafletProvider, z: number, x: number, y: number) {
  */
 export function MapStyleControl() {
   const map = useMap();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  // Inside the app the host sets the language; offering a second switch here
+  // would fight it. On the web this is the only way to change it.
+  const canPickLanguage = !window.ReactNativeWebView;
   const provider = useGlobalStore((state) => state.leafletProvider);
   const setProvider = useGlobalStore((state) => state.setLeafletProvider);
   const [open, setOpen] = useState(false);
@@ -111,6 +115,29 @@ export function MapStyleControl() {
               );
             })}
           </div>
+
+          {canPickLanguage && (
+            <>
+              <p className="map-style__heading">{t("map_style.language")}</p>
+              <div className="map-style__languages">
+                {LANGUAGES.map((language) => (
+                  <button
+                    key={language.code}
+                    type="button"
+                    lang={language.code}
+                    className="map-style__language"
+                    aria-pressed={i18n.language === language.code}
+                    onClick={() => {
+                      void i18n.changeLanguage(language.code);
+                      setOpen(false);
+                    }}
+                  >
+                    {language.name}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 

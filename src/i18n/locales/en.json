@@ -112,7 +112,8 @@
     "streets": "Streets",
     "dark": "Dark",
     "satellite": "Satellite",
-    "terrain": "Terrain"
+    "terrain": "Terrain",
+    "language": "Language"
   },
   "follow": {
     "following": "Following bus",
