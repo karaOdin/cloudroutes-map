@@ -18,7 +18,12 @@ import { distanceToPath } from "./route-path.ts";
  * - a ride with nothing to ride: no stops and no distance between boarding
  *   and getting off, which the planner returns as a step of its own;
  * - a line that is not drawn, or that the plan names but the line list
- *   does not have.
+ *   does not have;
+ * - an answer broken in itself: M'sila's planner answered "ride Line 17"
+ *   between two stops 175 m apart with a one-point path, 0 km, 0 minutes and
+ *   0 stops, and the map showed a trip card with no ride drawn on it. A ride
+ *   whose own path does not cover the distance between its stops, or does
+ *   not start and end at them, is not a ride the planner actually found.
  *
  * A trip with any of the first kind is not shown at all — the rider is told
  * which stop is wrong instead. Being sent to the wrong kerb is worse than
@@ -35,12 +40,19 @@ export const TRANSFER_WALK_M = 500;
 /** Closer than this, boarding and getting off are the same place. */
 const SAME_PLACE_M = 30;
 
+/** The ride's own path must end this close to its stops. */
+const PATH_END_M = 300;
+
+/** A ride's path shorter than this share of the straight line between its stops is not the ride. */
+const MIN_PATH_SHARE = 0.5;
+
 export type PlanIssue =
   | { kind: "unknown_line"; line: string }
   | { kind: "stop_off_line"; line: string; stop: string; metres: number }
   | { kind: "transfer_gap"; from: string; to: string; metres: number }
   | { kind: "not_drawn"; line: string }
-  | { kind: "nothing_to_ride" };
+  | { kind: "nothing_to_ride" }
+  | { kind: "broken_answer"; line: string; from: string; to: string };
 
 export type PlanCheck = {
   /** The journey, with rides that go nowhere taken out. */
@@ -79,6 +91,28 @@ function goesNowhere(ride: Ride): boolean {
   return at(ride.board).distanceTo(at(ride.alight)) < SAME_PLACE_M;
 }
 
+/** Does the planner's own drawing of the ride hold together? */
+function answerHolds(ride: Ride): boolean {
+  const { path } = ride;
+
+  if (path.length < 2) return false;
+
+  const straight = at(ride.board).distanceTo(at(ride.alight));
+  let length = 0;
+
+  for (let i = 1; i < path.length; i += 1) length += path[i - 1].distanceTo(path[i]);
+
+  if (length < straight * MIN_PATH_SHARE) return false;
+
+  const first = path[0];
+  const last = path[path.length - 1];
+  const fits = (start: LatLng, end: LatLng) =>
+    start.distanceTo(at(ride.board)) <= PATH_END_M && end.distanceTo(at(ride.alight)) <= PATH_END_M;
+
+  // Either way round: a path drawn backwards is still the same stretch.
+  return fits(first, last) || fits(last, first);
+}
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export function checkJourney(journey: Journey, lines: any[]): PlanCheck {
   const byKey = new Map(lines.map((line) => [lineKey(String(line.name ?? "")), line]));
@@ -88,18 +122,35 @@ export function checkJourney(journey: Journey, lines: any[]): PlanCheck {
   const rides = journey.rides.filter((ride) => !goesNowhere(ride));
 
   for (const ride of rides) {
+    const before = fatal.length;
+
+    checkAgainstLine(ride);
+
+    // The line's own mistake explains a broken answer and names the stop to
+    // fix, so it is the one reported; this is for answers broken on their own.
+    if (fatal.length === before && !answerHolds(ride)) {
+      fatal.push({
+        kind: "broken_answer",
+        line: ride.line,
+        from: ride.board.name,
+        to: ride.alight.name,
+      });
+    }
+  }
+
+  function checkAgainstLine(ride: Ride) {
     const line = byKey.get(lineKey(ride.line));
 
     if (!line) {
       fatal.push({ kind: "unknown_line", line: ride.line });
-      continue;
+      return;
     }
 
     const path = drawnPath(line);
 
     if (path.length < 2) {
       warnings.push({ kind: "not_drawn", line: ride.line });
-      continue;
+      return;
     }
 
     for (const stop of [ride.board, ride.alight]) {

@@ -32,6 +32,8 @@ export type Ride = {
   stops: number;
   /** Metres of road between boarding and alighting. */
   metres: number;
+  /** The ride as the planner drew it, to check the answer against itself. */
+  path: LatLng[];
 };
 
 export type Journey = {
@@ -144,6 +146,7 @@ export function readJourney(route: RouteData): Journey {
           : Math.max(0, names.length - 1),
       metres:
         path.length > 1 ? pathLength(path) : (step.distance ?? 0) * 1000,
+      path,
     });
   });
 

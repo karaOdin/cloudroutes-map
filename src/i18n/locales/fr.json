@@ -239,6 +239,7 @@
     "stop_unserved": "Aucune ligne ne dessert encore cet arrêt.",
     "problem_bad_stop": "Trajet non affiché : {{line}} ne passe pas par {{stop}} (son tracé est à {{distance}}). Les données de la ligne sont à corriger. Essayez un arrêt proche.",
     "problem_bad_transfer": "Trajet non affiché : la correspondance de {{from}} à {{to}} demande {{distance}} à pied, les deux lignes ne se croisent pas vraiment. Essayez un autre arrêt.",
-    "problem_bad_line": "Trajet non affiché : {{line}} n'est pas sur la carte, impossible de la vérifier ou de la suivre."
+    "problem_bad_line": "Trajet non affiché : {{line}} n'est pas sur la carte, impossible de la vérifier ou de la suivre.",
+    "problem_bad_answer": "Trajet non affiché : la réponse pour {{line}} de {{from}} à {{to}} est incomplète, sans tracé entre les arrêts. Essayez un autre arrêt."
   }
 }

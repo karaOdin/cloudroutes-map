@@ -239,6 +239,7 @@
     "stop_unserved": "No bus line serves this stop yet.",
     "problem_bad_stop": "We didn't show this trip: {{line}} doesn't pass {{stop}} (its route is {{distance}} away). The line's data needs fixing. Try a stop nearby.",
     "problem_bad_transfer": "We didn't show this trip: the change from {{from}} to {{to}} is a {{distance}} walk, so the two lines don't really meet. Try another stop.",
-    "problem_bad_line": "We didn't show this trip: {{line}} isn't on the map, so it can't be checked or followed."
+    "problem_bad_line": "We didn't show this trip: {{line}} isn't on the map, so it can't be checked or followed.",
+    "problem_bad_answer": "We didn't show this trip: the answer for {{line}} from {{from}} to {{to}} came back incomplete, with no route between the stops. Try another stop."
   }
 }

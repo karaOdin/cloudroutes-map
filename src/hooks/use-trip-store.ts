@@ -26,7 +26,8 @@ export type TripProblem =
   /** The planner answered, but with a trip the line data shows to be wrong. */
   | "bad_stop"
   | "bad_transfer"
-  | "bad_line";
+  | "bad_line"
+  | "bad_answer";
 
 type State = {
   route: RouteData | null;
@@ -61,6 +62,11 @@ function describeIssue(issue: PlanIssue): {
       return {
         problem: "bad_transfer",
         detail: { from: issue.from, to: issue.to, metres: Math.round(issue.metres) },
+      };
+    case "broken_answer":
+      return {
+        problem: "bad_answer",
+        detail: { line: issue.line, from: issue.from, to: issue.to },
       };
     case "unknown_line":
       return { problem: "bad_line", detail: { line: issue.line } };
