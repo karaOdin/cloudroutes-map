@@ -95,7 +95,7 @@ export function WhereTo() {
         onPointerDown={(event) => event.stopPropagation()}
         onWheel={(event) => event.stopPropagation()}
       >
-        {hint && !planning && (
+        {hint && !planning && !problem && (
           <div className="where-to__hint" role="note">
             <span className="where-to__hint-badge">{t("trip.new")}</span>
             <span className="where-to__hint-text">{t("trip.hint")}</span>
