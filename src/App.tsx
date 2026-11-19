@@ -40,6 +40,7 @@ import { WhereTo } from "./components/WhereTo.tsx";
 import { PressToGo } from "./components/PressToGo.tsx";
 import { useTripStore } from "./hooks/use-trip-store.ts";
 import { useBrowserLocation } from "./hooks/use-browser-location.ts";
+import { useFeedPlanner } from "./hooks/use-planner-feed.ts";
 import { GoMode } from "./components/GoMode.tsx";
 import { useGo } from "./hooks/use-go.ts";
 import { useGoStore } from "./hooks/use-go-store.ts";
@@ -696,6 +697,7 @@ function App() {
   const setRouteFromHost = useTripStore((state) => state.setFromHost);
 
   useBrowserLocation(routeData != null);
+  useFeedPlanner();
 
   // A trip the line data shows to be wrong — a stop its line never passes,
   // a change between lines that do not meet — is taken off the map, and the

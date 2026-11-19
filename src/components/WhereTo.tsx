@@ -114,7 +114,10 @@ export function WhereTo() {
         )}
 
         {problem && (
-          <div className="where-to__problem" role="alert">
+          <div
+            className={`where-to__problem${problem === "walk" ? " is-walk" : ""}`}
+            role={problem === "walk" ? "status" : "alert"}
+          >
             <span>
               {t(`trip.problem_${problem}`, {
                 ...problemDetail,
@@ -267,7 +270,10 @@ function TripSheet({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
     }
 
     onClose();
-    void plan(name, from ? { stop: from } : undefined);
+
+    const stop = byName.get(name);
+
+    void plan(name, from ? { stop: from } : undefined, stop ? { lat: stop.lat, lng: stop.lng } : undefined);
   };
 
   const row = (stop: PlaceStop, extra?: string, kind: "stop" | "recent" = "stop") => (

@@ -167,7 +167,10 @@ export function BusStopModal({
               className="stop-go"
               onClick={() => {
                 onClose();
-                void plan(stop.title);
+                void plan(stop.title, undefined, {
+                  lat: stop.coordinate[0],
+                  lng: stop.coordinate[1],
+                });
               }}
             >
               <GoGlyph size={18} />

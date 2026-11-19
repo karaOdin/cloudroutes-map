@@ -187,7 +187,9 @@
     "show_bus": "Show this bus on the map",
     "no_location": "Your position isn't shared, so the walk is the planner's estimate",
     "walk_estimated": "Walk estimated in a straight line — the walking router didn't answer",
-    "no_bus_running": "No {{line}} bus on the road right now"
+    "no_bus_running": "No {{line}} bus on the road right now",
+    "options": "Other trips",
+    "option_minutes": "~{{minutes}} min"
   },
   "go": {
     "start": "Go",
@@ -240,6 +242,7 @@
     "problem_bad_stop": "We didn't show this trip: {{line}} doesn't pass {{stop}} (its route is {{distance}} away). The line's data needs fixing. Try a stop nearby.",
     "problem_bad_transfer": "We didn't show this trip: the change from {{from}} to {{to}} is a {{distance}} walk, so the two lines don't really meet. Try another stop.",
     "problem_bad_line": "We didn't show this trip: {{line}} isn't on the map, so it can't be checked or followed.",
-    "problem_bad_answer": "We didn't show this trip: the answer for {{line}} from {{from}} to {{to}} came back incomplete, with no route between the stops. Try another stop."
+    "problem_bad_answer": "We didn't show this trip: the answer for {{line}} from {{from}} to {{to}} came back incomplete, with no route between the stops. Try another stop.",
+    "problem_walk": "{{stop}} is a {{minutes}} min walk ({{distance}}), quicker than waiting for a bus."
   }
 }

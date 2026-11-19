@@ -47,6 +47,9 @@ export function JourneyCard({ live }: { live: LiveJourney }) {
   const toggleFollow = useFollowStore((state) => state.toggleFollow);
   const startGo = useGoStore((state) => state.start);
   const clearTrip = useTripStore((state) => state.clear);
+  const options = useTripStore((state) => state.options);
+  const route = useTripStore((state) => state.route);
+  const chooseOption = useTripStore((state) => state.choose);
 
   usePublishHeight(card);
 
@@ -196,6 +199,32 @@ export function JourneyCard({ live }: { live: LiveJourney }) {
           ) : null}
         </div>
       </div>
+
+      {/* The planner's other trips: a different line, or fewer changes,
+          can suit a rider better than the quickest on paper. */}
+      {options.length > 1 && (
+        <div className="journey__options" role="radiogroup" aria-label={t("journey.options")}>
+          {options.map((option, index) => {
+            const used = option.metadata?.lines_used ?? [];
+
+            return (
+              <button
+                key={index}
+                type="button"
+                role="radio"
+                aria-checked={option === route}
+                className="journey__option"
+                onClick={() => chooseOption(option)}
+              >
+                <span className="journey__option-lines">{used.map((line) => isolate(line)).join(" › ")}</span>
+                <span className="journey__option-time" dir="ltr">
+                  {t("journey.option_minutes", { minutes: option.total_time })}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="journey__to">
         <FlagGlyph size={14} />

@@ -123,7 +123,12 @@ export function readJourney(route: RouteData): Journey {
       .find((other) => other.action === "board" || other.action === "transfer");
     const after = steps
       .slice(index + 1)
-      .find((other) => other.action === "transfer" || other.action === "arrive");
+      // `exit` is where a ride ends before a walk to the next bus, or to
+      // the destination; without it the walk's far end was taken for the stop.
+      .find(
+        (other) =>
+          other.action === "transfer" || other.action === "arrive" || other.action === "exit"
+      );
     const names = step.stops_between ?? [];
 
     const board =

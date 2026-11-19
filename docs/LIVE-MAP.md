@@ -718,6 +718,30 @@ What every tenant's data looked like when this was written (`/lines`,
 | Constantine | A route starting 17 km from its first stop; 3 more route ends over 1 km from any stop; 9 stops 170-310 m off; 3 groups of lines with no stop in common |
 | Djelfa, Chlef | `/lines` did not answer within 60 s |
 
+### Planning on the map
+
+Trips started on the map (the Where-to bar, a stop's "Take me here", a long
+press) are planned in the browser by `src/services/planner.ts`, not by the
+tenant's `/plan-journey`. The tenant planner walks the rider to the single
+nearest stop and plans from there only, changes lines only at the very same
+stop record, prefers fewest stops to quickest, and makes up its times. In
+M'sila it sent a rider 710 m to a Line 12 stop and on through a change,
+past a Line 17 stop that went straight there in under half the time.
+
+The map's planner searches every stop within 1.5 km of the rider (walking
+distances from the foot router, so a railway between the rider and a stop
+counts) and every stop within 700 m of the destination. It rides each line in
+the direction its drawing runs, and back unless the line is a loop. It
+changes lines at the same stop or a stop up to 400 m away, and ranks trips by
+time, taking the first wait from the buses on the road. Up to three trips come
+back, and the card offers the others. A destination within 450 m, or within
+1 km and no slower on foot, is answered with the walk.
+
+Run against 300 random trips in each of M'sila, Biskra and Aïn Témouchent, it
+found a trip or a walk for every one, in 30-70 ms. `?planner=backend` uses the
+tenant API instead, for comparison; so does the map if the lines have not
+loaded yet. Trips the host sends in `ROUTE_DATA` are still the host's.
+
 ### When no bus is coming
 
 The card tells apart "none heading here yet" (buses are running on the line)

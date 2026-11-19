@@ -187,7 +187,9 @@
     "show_bus": "Voir ce bus sur la carte",
     "no_location": "Votre position n’est pas partagée : la marche est l’estimation du planificateur",
     "walk_estimated": "Marche estimée à vol d’oiseau — le calcul piéton n’a pas répondu",
-    "no_bus_running": "Aucun bus {{line}} en circulation pour le moment"
+    "no_bus_running": "Aucun bus {{line}} en circulation pour le moment",
+    "options": "Autres trajets",
+    "option_minutes": "~{{minutes}} min"
   },
   "go": {
     "start": "C’est parti",
@@ -240,6 +242,7 @@
     "problem_bad_stop": "Trajet non affiché : {{line}} ne passe pas par {{stop}} (son tracé est à {{distance}}). Les données de la ligne sont à corriger. Essayez un arrêt proche.",
     "problem_bad_transfer": "Trajet non affiché : la correspondance de {{from}} à {{to}} demande {{distance}} à pied, les deux lignes ne se croisent pas vraiment. Essayez un autre arrêt.",
     "problem_bad_line": "Trajet non affiché : {{line}} n'est pas sur la carte, impossible de la vérifier ou de la suivre.",
-    "problem_bad_answer": "Trajet non affiché : la réponse pour {{line}} de {{from}} à {{to}} est incomplète, sans tracé entre les arrêts. Essayez un autre arrêt."
+    "problem_bad_answer": "Trajet non affiché : la réponse pour {{line}} de {{from}} à {{to}} est incomplète, sans tracé entre les arrêts. Essayez un autre arrêt.",
+    "problem_walk": "{{stop}} est à {{minutes}} min à pied ({{distance}}), plus rapide que d'attendre un bus."
   }
 }

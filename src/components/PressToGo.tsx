@@ -210,7 +210,10 @@ export function PressToGo() {
                 onClick={() => {
                   map.closePopup();
                   close();
-                  void plan(nearest.stop.name);
+                  void plan(nearest.stop.name, undefined, {
+                    lat: nearest.stop.lat,
+                    lng: nearest.stop.lng,
+                  });
                 }}
               >
                 <GoGlyph size={16} />

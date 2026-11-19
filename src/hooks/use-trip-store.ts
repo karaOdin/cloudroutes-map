@@ -27,7 +27,9 @@ export type TripProblem =
   | "bad_stop"
   | "bad_transfer"
   | "bad_line"
-  | "bad_answer";
+  | "bad_answer"
+  /** No problem as such: the destination is a short walk, quicker than any bus. */
+  | "walk";
 
 type State = {
   route: RouteData | null;
@@ -37,11 +39,20 @@ type State = {
   problem: TripProblem | null;
   /** Names and distances for the problem's message. */
   problemDetail: Record<string, string | number> | null;
+  /** Other trips the planner found, best first, for the rider to switch to. */
+  options: RouteData[];
 };
 
 type Actions = {
   setFromHost: (route: RouteData | null) => void;
-  plan: (to: string, from?: { stop: string }) => Promise<void>;
+  plan: (
+    to: string,
+    from?: { stop: string },
+    /** Where the destination stop is, when the caller knows: names repeat. */
+    at?: { lat: number; lng: number }
+  ) => Promise<void>;
+  /** Show another of the trips found instead. */
+  choose: (route: RouteData) => void;
   clear: () => void;
   dismissProblem: () => void;
   /** Take a trip off the map because its data is wrong, and say why. */
@@ -89,9 +100,11 @@ export const useTripStore = create<State & Actions>((set, get) => ({
   planning: null,
   problem: null,
   problemDetail: null,
+  options: [],
 
   setFromHost: (route) =>
     set({
+      options: [],
       route,
       source: route ? "host" : null,
       planning: null,
@@ -99,7 +112,7 @@ export const useTripStore = create<State & Actions>((set, get) => ({
       problemDetail: null,
     }),
 
-  plan: async (to, from) => {
+  plan: async (to, from, at) => {
     set({ planning: to, problem: null, problemDetail: null });
 
     let origin: TripFrom;
@@ -122,26 +135,38 @@ export const useTripStore = create<State & Actions>((set, get) => ({
     }
 
     try {
-      const route = await planTrip(origin, to);
+      const { route, options } = await planTrip(origin, to, at);
 
       // A newer request, or a cancel, while this one was out.
       if (get().planning !== to) return;
 
       rememberPlace(to);
-      set({ route, source: "rider", planning: null, problem: null, problemDetail: null });
+      set({ route, options, source: "rider", planning: null, problem: null, problemDetail: null });
       tellHost({ type: "ROUTE_PLANNED", destination: to, routeData: route });
     } catch (error) {
       if (get().planning !== to) return;
 
+      const walk = error instanceof PlanError && error.reason === "walk" ? error.detail : null;
+
       set({
         planning: null,
         problem: error instanceof PlanError ? error.reason : "failed",
+        problemDetail: walk
+          ? { stop: to, metres: Math.round(walk.metres), minutes: Math.max(1, Math.round(walk.seconds / 60)) }
+          : null,
       });
     }
   },
 
+  choose: (route) => {
+    if (get().source !== "rider") return;
+
+    set({ route });
+    tellHost({ type: "ROUTE_PLANNED", destination: null, routeData: route });
+  },
+
   clear: () => {
-    set({ route: null, source: null, planning: null, problem: null, problemDetail: null });
+    set({ route: null, options: [], source: null, planning: null, problem: null, problemDetail: null });
     tellHost({ type: "ROUTE_CLEARED" });
   },
 
@@ -150,7 +175,17 @@ export const useTripStore = create<State & Actions>((set, get) => ({
   reject: (issue) => {
     const { problem, detail } = describeIssue(issue);
 
-    set({ route: null, source: null, planning: null, problem, problemDetail: detail });
+    // Another option the planner found may still hold; offer the next one.
+    const next = get().options.find((option) => option !== get().route);
+
+    if (next && get().source === "rider" && issue.kind !== "unknown_line") {
+      set({ route: next, options: get().options.filter((option) => option !== get().route) });
+      tellHost({ type: "ROUTE_PLANNED", destination: null, routeData: next });
+
+      return;
+    }
+
+    set({ route: null, options: [], source: null, planning: null, problem, problemDetail: detail });
     // The host may be showing the same trip in its own list; it should know.
     tellHost({ type: "ROUTE_REJECTED", reason: issue.kind, issue });
   },
